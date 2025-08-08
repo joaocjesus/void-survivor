@@ -161,6 +161,7 @@
 }
 
 #btnRefundMeta.disabled:hover {
-    background: #25313b; /* keep base color */
+    background: #25313b;
+    /* keep base color */
     border-color: #355062;
 }
