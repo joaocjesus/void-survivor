@@ -1,18 +1,27 @@
 import { MetaSave, PersistPayload, PlayerStartStats, MetaUpgradeDef } from './types';
+import { START_STATS, META_VALUES } from './constants/balance';
 
 const STORAGE_KEY = 'survivors_meta_v1';
 
 export const defaultStartStats: PlayerStartStats = {
-    hp: 50, maxHp: 50, damage: 10, speed: 100, attackSpeed: 1, projectileSpeed: 100, pickupRange: 50, regen: 0, orbitCount: 0, orbitDamage: 4, orbitRadius: 50, ringLevel: 0, lightningLevel: 0, xpGain: 1,
+    hp: START_STATS.HP,
+    maxHp: START_STATS.MAX_HP,
+    damage: START_STATS.DAMAGE,
+    speed: START_STATS.SPEED,
+    attackSpeed: START_STATS.ATTACK_SPEED,
+    projectileSpeed: START_STATS.PROJECTILE_SPEED,
+    pickupRange: START_STATS.PICKUP_RANGE,
+    regen: START_STATS.REGEN,
+    xpGain: START_STATS.XP_GAIN,
 };
 
 export const META_UPGRADES: MetaUpgradeDef[] = [
-    { id: 'meta_hp', name: 'Vitality', description: '+10 Max HP per level', maxLevel: 50, cost: l => 20 + l * 10, apply: (lvl, s) => { s.maxHp += 10 * lvl; s.hp = s.maxHp; } },
-    { id: 'meta_damage', name: 'Might', description: '+5 Damage per level', maxLevel: 50, cost: l => 15 + l * 8, apply: (lvl, s) => { s.damage += 5 * lvl; } },
-    { id: 'meta_speed', name: 'Swiftness', description: '+4% Move Speed / level', maxLevel: 50, cost: l => 15 + l * 12, apply: (lvl, s) => { s.speed *= (1 + 0.04 * lvl); } },
-    { id: 'meta_regen', name: 'Regen', description: '+0.2 HP/s per level', maxLevel: 50, cost: l => 30 + l * 15, apply: (lvl, s) => { s.regen += 0.2 * lvl; } },
-    { id: 'meta_pickup', name: 'Magnet', description: '+8 Pickup Range / level', maxLevel: 20, cost: l => 20 + l * 14, apply: (lvl, s) => { s.pickupRange += 8 * lvl; } },
-    { id: 'meta_xp', name: 'Wisdom', description: '+10% XP Gain / level', maxLevel: 40, cost: l => 25 + l * 20, apply: (lvl, s) => { s.xpGain *= (1 + 0.1 * lvl); } },
+    { id: 'meta_hp', name: 'Vitality', description: `+${META_VALUES.HP_PER_LEVEL} Max HP per level`, maxLevel: 50, cost: l => 20 + l * 10, apply: (lvl, s) => { s.maxHp += META_VALUES.HP_PER_LEVEL * lvl; s.hp = s.maxHp; } },
+    { id: 'meta_damage', name: 'Might', description: `+${META_VALUES.DAMAGE_PER_LEVEL} Damage per level`, maxLevel: 50, cost: l => 15 + l * 8, apply: (lvl, s) => { s.damage += META_VALUES.DAMAGE_PER_LEVEL * lvl; } },
+    { id: 'meta_speed', name: 'Swiftness', description: `+${(META_VALUES.SPEED_PCT_PER_LEVEL * 100).toFixed(0)}% Move Speed / level`, maxLevel: 50, cost: l => 15 + l * 12, apply: (lvl, s) => { s.speed *= (1 + META_VALUES.SPEED_PCT_PER_LEVEL * lvl); } },
+    { id: 'meta_regen', name: 'Regen', description: `+${META_VALUES.REGEN_PER_LEVEL} HP/s per level`, maxLevel: 50, cost: l => 30 + l * 15, apply: (lvl, s) => { s.regen += META_VALUES.REGEN_PER_LEVEL * lvl; } },
+    { id: 'meta_pickup', name: 'Magnet', description: `+${META_VALUES.PICKUP_RANGE_PER_LEVEL} Pickup Range / level`, maxLevel: 20, cost: l => 20 + l * 14, apply: (lvl, s) => { s.pickupRange += META_VALUES.PICKUP_RANGE_PER_LEVEL * lvl; } },
+    { id: 'meta_xp', name: 'Wisdom', description: `+${(META_VALUES.XP_GAIN_PCT_PER_LEVEL * 100).toFixed(0)}% XP Gain / level`, maxLevel: 40, cost: l => 25 + l * 20, apply: (lvl, s) => { s.xpGain *= (1 + META_VALUES.XP_GAIN_PCT_PER_LEVEL * lvl); } },
 ];
 
 export function loadMeta(): MetaSave {

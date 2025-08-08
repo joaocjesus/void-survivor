@@ -1,28 +1,28 @@
 import { UpgradeDef, GameState } from './types';
+import { UPGRADE_VALUES, POWERS_VALUES, POWERS_UPGRADE_VALUES } from './constants/balance';
 
 // In-run upgrade definitions extracted from game.ts to keep Game class lean.
 // Keep pure data + apply lambdas only; no DOM or PIXI references.
 export const UPGRADES: UpgradeDef[] = [
-    { id: 'dmg', name: 'Sharpened Projectiles', description: '+5 damage', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.damage = (p.damage || 1) + 5; } },
-    { id: 'aspd', name: 'Attack Speed', description: 'Fire 25% faster', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.attackSpeed = (p.attackSpeed || 1) * 1.25; } },
-    { id: 'speed', name: 'Boots', description: '+10% move speed', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.speed = (p.speed || 120) * 1.1; } },
-    { id: 'projspd', name: 'Projectile Speed', description: '+20% projectile speed', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.projectileSpeed = (p.projectileSpeed || 280) * 1.2; } },
-    { id: 'hp', name: 'Max Health', description: '+25 max HP & heal 25', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.maxHp = (p.maxHp || 100) + 25; p.hp = Math.min((p.hp || 0) + 25, p.maxHp); } },
-    { id: 'pickup', name: 'Magnet', description: '+50% pickup range', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.pickupRange = (p.pickupRange || 60) * 1.5; } },
-    { id: 'regen', name: 'Regeneration', description: '+0.5 HP/s regen', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.regen = (p.regen || 0) + 0.5; } },
-    { id: 'aura', name: 'Magic Aura', description: 'Unlock / +20% aura (damage field)', apply: gs => { const p = gs.entities.get(gs.playerId)!; (p as any).auraLevel = ((p as any).auraLevel || 0) + 1; } },
+    { id: 'dmg', name: 'Sharpened Projectiles', description: `+${UPGRADE_VALUES.DAMAGE_PLUS} damage`, apply: gs => { const p = gs.entities.get(gs.playerId)!; p.damage = (p.damage || 1) + UPGRADE_VALUES.DAMAGE_PLUS; } },
+    { id: 'aspd', name: 'Attack Speed', description: `Fire ${(UPGRADE_VALUES.ATTACK_SPEED_MULT - 1) * 100}% faster`, apply: gs => { const p = gs.entities.get(gs.playerId)!; p.attackSpeed = (p.attackSpeed || 1) * UPGRADE_VALUES.ATTACK_SPEED_MULT; } },
+    { id: 'speed', name: 'Boots', description: `+${(UPGRADE_VALUES.MOVE_SPEED_MULT - 1) * 100}% move speed`, apply: gs => { const p = gs.entities.get(gs.playerId)!; p.speed = (p.speed || 120) * UPGRADE_VALUES.MOVE_SPEED_MULT; } },
+    { id: 'projspd', name: 'Projectile Speed', description: `+${(UPGRADE_VALUES.PROJECTILE_SPEED_MULT - 1) * 100}% projectile speed`, apply: gs => { const p = gs.entities.get(gs.playerId)!; p.projectileSpeed = (p.projectileSpeed || 280) * UPGRADE_VALUES.PROJECTILE_SPEED_MULT; } },
+    { id: 'hp', name: 'Max Health', description: `+${UPGRADE_VALUES.MAX_HP_PLUS} max HP & heal ${UPGRADE_VALUES.MAX_HP_HEAL}`, apply: gs => { const p = gs.entities.get(gs.playerId)!; p.maxHp = (p.maxHp || 100) + UPGRADE_VALUES.MAX_HP_PLUS; p.hp = Math.min((p.hp || 0) + UPGRADE_VALUES.MAX_HP_HEAL, p.maxHp); } },
+    { id: 'pickup', name: 'Magnet', description: `+${(UPGRADE_VALUES.PICKUP_RANGE_MULT - 1) * 100}% pickup range`, apply: gs => { const p = gs.entities.get(gs.playerId)!; p.pickupRange = (p.pickupRange || 60) * UPGRADE_VALUES.PICKUP_RANGE_MULT; } },
+    { id: 'regen', name: 'Regeneration', description: `+${UPGRADE_VALUES.REGEN_PLUS} HP/s regen`, apply: gs => { const p = gs.entities.get(gs.playerId)!; p.regen = (p.regen || 0) + UPGRADE_VALUES.REGEN_PLUS; } },
+    { id: 'aura', name: 'Magic Aura', description: `Unlock / +${POWERS_UPGRADE_VALUES.AURA_RADIUS_INCREMENT}% aura size`, apply: gs => { const p = gs.entities.get(gs.playerId)!; (p as any).auraLevel = ((p as any).auraLevel || 0) + 1; } },
     {
         id: 'magicOrb', name: 'Magic Orbs', description: 'Unlock / +1 Magic Orb', apply: gs => {
             const p = gs.entities.get(gs.playerId)!;
-            (p as any).magicOrbCount = ((p as any).magicOrbCount ?? (p as any).orbitCount ?? 0) + 1;
-            (p as any).orbitCount = (p as any).magicOrbCount; // mirror legacy key
+            (p as any).magicOrbCount = ((p as any).magicOrbCount ?? 0) + 1;
         }
     },
     {
-        id: 'magicOrbDmg', name: 'Magic Orb Damage', description: 'Magic Orb damage +5', apply: gs => {
+        id: 'magicOrbDmg', name: 'Magic Orb Damage', description: `Magic Orb damage +${POWERS_UPGRADE_VALUES.MAGIC_ORB_DAMAGE_INCREMENT}`, apply: gs => {
             const p = gs.entities.get(gs.playerId)!;
-            (p as any).magicOrbDamage = ((p as any).magicOrbDamage ?? (p as any).orbitDamage ?? 5) + 5;
-            (p as any).orbitDamage = (p as any).magicOrbDamage;
+            const base = (p as any).magicOrbDamage ?? POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE;
+            (p as any).magicOrbDamage = base + POWERS_UPGRADE_VALUES.MAGIC_ORB_DAMAGE_INCREMENT;
         }
     },
 ];

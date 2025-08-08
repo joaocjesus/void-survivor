@@ -8,6 +8,7 @@ import { clamp, distSq } from './math';
 import { createBackground } from './game/background';
 import { updateHud, updateStatsOverlay } from './game/hud';
 import { createInputState, setupKeyboard, setupGamepad } from './game/input';
+import { XP_CURVE_MULT, XP_CURVE_FLAT, SPAWN_INTERVAL_START, SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_DECAY, FIRE_INTERVAL_BASE, POWERS_VALUES, UPGRADE_VALUES } from './constants/balance';
 
 
 export class Game {
@@ -220,7 +221,7 @@ export class Game {
 
     chooseUpgrade(u: UpgradeDef) {
         const player = this.gs.entities.get(this.gs.playerId)!;
-        const beforeOrbit = ((player as any).magicOrbCount ?? (player as any).orbitCount) || 0;
+        const beforeOrbit = ((player as any).magicOrbCount) || 0;
         u.apply(this.gs);
         // allow duplicates for now by pushing back
         this.gs.upgradePool.push(u);
@@ -345,7 +346,7 @@ export class Game {
     levelUp() {
         this.gs.level++;
         this.gs.xp = 0;
-        this.gs.xpNeeded = Math.round(this.gs.xpNeeded * 1.25 + 5); // slightly easier curve
+        this.gs.xpNeeded = Math.round(this.gs.xpNeeded * XP_CURVE_MULT + XP_CURVE_FLAT); // curve from constants
         this.showUpgradeChoices();
         playSound('level');
     }
@@ -452,7 +453,7 @@ export class Game {
 
         // spawn mobs
         this.gs.spawnTimer -= dt;
-        const spawnInterval = clamp(1.4 - this.gs.time * 0.006, 0.25, 1.4); // slower ramp
+        const spawnInterval = clamp(SPAWN_INTERVAL_START - this.gs.time * SPAWN_INTERVAL_DECAY, SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START);
         if (this.gs.spawnTimer <= 0) {
             this.spawnMob();
             this.gs.spawnTimer = spawnInterval;
@@ -460,7 +461,7 @@ export class Game {
 
         // fire projectiles (attack speed factor)
         this.gs.projectileTimer -= dt * (player.attackSpeed || 1);
-        const fireInterval = 1.65; // slower baseline but player attackSpeed buffed
+        const fireInterval = FIRE_INTERVAL_BASE;
         if (this.gs.projectileTimer <= 0) {
             this.fireProjectile();
             this.gs.projectileTimer = fireInterval;
@@ -486,9 +487,9 @@ export class Game {
         // Aura damage application
         const auraLevel = (player as any).auraLevel || 0;
         if (auraLevel > 0) {
-            const baseRadius = 80; // base
+            const baseRadius = POWERS_VALUES.AURA_BASE_RADIUS;
             const radius = baseRadius * (1 + 0.2 * (auraLevel - 1));
-            const dps = 14 * auraLevel; // damage per second distributed
+            const dps = POWERS_VALUES.AURA_DPS_PER_LEVEL * auraLevel; // from constants
             const auraG: PIXI.Graphics = (player as any).auraG;
             if (auraG) {
                 auraG.clear();
@@ -507,7 +508,7 @@ export class Game {
         }
 
         // Orbiting scriptures
-        const orbitCount = ((player as any).magicOrbCount ?? (player as any).orbitCount) || 0;
+        const orbitCount = ((player as any).magicOrbCount) || 0;
         if (orbitCount > 0) {
             const orbitG: PIXI.Container = (player as any).orbitG;
             while (orbitG.children.length < orbitCount) {
@@ -516,8 +517,8 @@ export class Game {
                 orbitG.addChild(g);
             }
             while (orbitG.children.length > orbitCount) { orbitG.removeChildAt(orbitG.children.length - 1); }
-            const radius = 70;
-            const dmg = ((player as any).magicOrbDamage ?? (player as any).orbitDamage) || 8;
+            const radius = POWERS_VALUES.MAGIC_ORB_RADIUS;
+            const dmg = ((player as any).magicOrbDamage) || POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE;
             for (let i = 0; i < orbitG.children.length; i++) {
                 const angle = this.gs.time * 2 + (i / orbitG.children.length) * Math.PI * 2;
                 const child = orbitG.children[i];

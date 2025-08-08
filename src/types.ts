@@ -6,7 +6,7 @@ export interface UpgradeDef { id: string; name: string; description: string; max
 
 export interface MetaUpgradeDef { id: string; name: string; description: string; maxLevel: number; cost: (level: number) => number; apply: (level: number, base: PlayerStartStats) => void; }
 
-export interface PlayerStartStats { hp: number; maxHp: number; damage: number; speed: number; attackSpeed: number; projectileSpeed: number; pickupRange: number; regen: number; orbitCount: number; orbitDamage: number; orbitRadius: number; ringLevel: number; lightningLevel: number; xpGain: number; auraDamage?: number; auraRadius?: number; }
+export interface PlayerStartStats { hp: number; maxHp: number; damage: number; speed: number; attackSpeed: number; projectileSpeed: number; pickupRange: number; regen: number; xpGain: number; auraDamage?: number; auraRadius?: number; }
 
 export interface MetaSave {
     shards: number;
