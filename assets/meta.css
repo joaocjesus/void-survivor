@@ -149,3 +149,18 @@
 .meta-upgrade.locked {
     opacity: .45
 }
+
+/* Refund All (global meta action) disabled styling */
+#btnRefundMeta.disabled,
+#btnRefundMeta:disabled {
+    opacity: .38;
+    cursor: not-allowed;
+    filter: grayscale(.35);
+    transform: none !important;
+    pointer-events: none;
+}
+
+#btnRefundMeta.disabled:hover {
+    background: #25313b; /* keep base color */
+    border-color: #355062;
+}

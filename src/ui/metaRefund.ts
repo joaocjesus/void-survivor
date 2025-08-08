@@ -11,6 +11,8 @@ export function updateRefundButton(meta: MetaSave, refundBtn: HTMLButtonElement 
     } else {
         refundBtn.removeAttribute('disabled');
     }
+    // Accessibility state
+    refundBtn.setAttribute('aria-disabled', state.disabled ? 'true' : 'false');
     refundBtn.classList.toggle('disabled', refundBtn.disabled);
     refundBtn.title = state.disabled ? 'No purchased upgrades to refund' : '';
     // Debug log
