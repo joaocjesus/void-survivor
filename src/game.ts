@@ -308,6 +308,22 @@ export class Game {
             if (e.key === 's' || e.key === 'ArrowDown') this.input.down = true;
             if (e.key === 'a' || e.key === 'ArrowLeft') this.input.left = true;
             if (e.key === 'd' || e.key === 'ArrowRight') this.input.right = true;
+            // Keyboard navigation for upgrade selection when paused
+            if (this.gs.paused && this.gs.offeredUpgrades.length) {
+                if (['ArrowLeft','a','A'].includes(e.key)) {
+                    this.upgradeSelIndex = Math.max(0, this.upgradeSelIndex - 1);
+                    this.applyUpgradeSelectionHighlight();
+                    e.preventDefault();
+                } else if (['ArrowRight','d','D'].includes(e.key)) {
+                    this.upgradeSelIndex = Math.min(this.gs.offeredUpgrades.length - 1, this.upgradeSelIndex + 1);
+                    this.applyUpgradeSelectionHighlight();
+                    e.preventDefault();
+                } else if (e.key === 'Enter') {
+                    const sel = this.gs.offeredUpgrades[this.upgradeSelIndex];
+                    if (sel) this.chooseUpgrade(sel);
+                    e.preventDefault();
+                }
+            }
             if ((e.key === 'Escape' || e.key.toLowerCase() === 'p') && !this.gs.paused) {
                 // open pause (unless upgrade modal already open)
                 if (this.upgradeModal && this.upgradeModal.style.display === 'flex') return;
