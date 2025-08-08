@@ -3,7 +3,7 @@ import { Entity, GameState, UpgradeDef, PlayerStartStats, MetaSave } from './typ
 import { playSound } from './audio';
 import { UPGRADES, pickRandomUpgrades, maybeAddDependentUpgrades } from './upgrades';
 import { spawnMob, spawnElite, spawnXp, fireProjectile, spawnParticle, spawnHitBurst, rollShardDrop, spawnShard } from './spawns';
-import { buildSnapshot, downloadSnapshot, promptLoadSnapshot, applySnapshot } from './save';
+// (Removed unused snapshot imports)
 
 // Simple deterministic seeded RNG (LCG) - TODO: unify with rng.ts later
 function randomRng(seed: number): () => number { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0x100000000; }; }
