@@ -1,7 +1,5 @@
 import { Game } from './game';
 import { META_UPGRADES, buildStartStats, loadMeta, purchaseMeta, saveMeta } from './meta';
-// Optional debug module (not committed). We'll attempt to import lazily later.
-// All debug-specific logic will live there when present.
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
@@ -92,7 +90,7 @@ function wireMenu() {
     document.getElementById('btnResetMeta')?.addEventListener('click', () => {
         if (confirm('Reset all meta progress?')) { localStorage.clear(); location.reload(); }
     });
-    setupOptionalDebug();
+    wireDevOptions();
 }
 
 // Menu navigation (keyboard + controller)
@@ -241,7 +239,7 @@ function bootstrap() {
     collectVisibleMenuButtons();
     setupMenuInput();
     // Attempt to load debug module early (non-fatal if missing)
-    setupOptionalDebug();
+    wireDevOptions();
     // Listen for in-game restart requests (Game Over restart button)
     window.addEventListener('voidsurvivor-restart', () => {
         const root = document.getElementById('app');
@@ -259,47 +257,26 @@ function bootstrap() {
 
 bootstrap();
 
-// ---------------- Optional Debug Integration ----------------
-// We reload this if wireMenu runs again, but typically once.
-let debugInitAttempted = false;
-async function setupOptionalDebug() {
-    if (debugInitAttempted) return; // avoid duplicate wiring
-    debugInitAttempted = true;
+// ---------------- Dev Options (env-controlled) ----------------
+function wireDevOptions() {
     const btnExport = document.getElementById('btnDebugExport') as HTMLButtonElement | null;
     const btnImport = document.getElementById('btnDebugImport') as HTMLButtonElement | null;
     const debugContainer = btnExport?.parentElement as HTMLElement | undefined;
     if (!btnExport || !btnImport || !debugContainer) return;
-    try {
-        // Optional file; we ignore TS resolution error via ts-ignore so build succeeds without it.
-        // @ts-ignore - debug.ts intentionally absent in repo
-        const mod: any = await import(/* @vite-ignore */'./debug.ts').catch(() => null);
-        if (!mod || typeof mod.debugEnabled !== 'function' || !mod.debugEnabled()) {
-            debugContainer.style.display = 'none';
-            return;
-        }
-        if (typeof mod.attachDebugHandlers === 'function') {
-            mod.attachDebugHandlers({
-                getGame: () => currentGame,
-                exportBtn: btnExport,
-                importBtn: btnImport
-            });
-        } else {
-            btnExport.addEventListener('click', async () => {
-                if (!currentGame) { alert('Start a run first'); return; }
-                const { buildSnapshot, downloadSnapshot } = await import('./save');
-                const snap = buildSnapshot(currentGame);
-                if (snap) downloadSnapshot(snap);
-            });
-            btnImport.addEventListener('click', async () => {
-                if (!currentGame) { alert('Start a run first'); return; }
-                const { promptLoadSnapshot, applySnapshot } = await import('./save');
-                promptLoadSnapshot(snap => applySnapshot(currentGame!, snap));
-            });
-        }
-    } catch {
-        if (debugContainer) debugContainer.style.display = 'none';
-    }
+    const env = (import.meta as any).env || {};
+    const enabled = env.DEV_OPTIONS === 'true'; // Provided by build environment
+    if (!enabled) { debugContainer.style.display = 'none'; return; }
+    // Attach snapshot handlers lazily
+    btnExport.addEventListener('click', async () => {
+        if (!currentGame) { alert('Start a run first'); return; }
+        const { buildSnapshot, downloadSnapshot } = await import('./save');
+        const snap = buildSnapshot(currentGame);
+        if (snap) downloadSnapshot(snap);
+    });
+    btnImport.addEventListener('click', async () => {
+        if (!currentGame) { alert('Start a run first'); return; }
+        const { promptLoadSnapshot, applySnapshot } = await import('./save');
+        promptLoadSnapshot(snap => applySnapshot(currentGame!, snap));
+    });
+    console.info('[dev] Snapshot import/export enabled via DEV_OPTIONS');
 }
-
-// Expose for potential manual re-init from console during dev
-(window as any).vsSetupDebug = setupOptionalDebug;
