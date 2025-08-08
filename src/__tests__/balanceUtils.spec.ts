@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { nextXpNeeded, spawnIntervalAt, auraRadiusAt, auraDpsAt } from '../balanceUtils';
-import { XP_CURVE_MULT, XP_CURVE_FLAT, SPAWN_INTERVAL_START, SPAWN_INTERVAL_MIN } from '../constants/balance';
+import { XP_CURVE_MULT, XP_CURVE_FLAT, SPAWN_INTERVAL_START, SPAWN_INTERVAL_MIN, POWERS_VALUES, POWERS_UPGRADE_VALUES } from '../constants/balance';
 
 describe('balance utils', () => {
   it('nextXpNeeded follows curve', () => {
@@ -14,10 +14,14 @@ describe('balance utils', () => {
     const late = spawnIntervalAt(10000);
     expect(late).toBe(SPAWN_INTERVAL_MIN);
   });
-  it('aura radius scaling', () => {
-    const base = auraRadiusAt(1);
+  it('aura radius: level1=base; subsequent levels add increment', () => {
+    const inc = POWERS_UPGRADE_VALUES.AURA_RADIUS_INCREMENT / 100;
+    const lvl1 = auraRadiusAt(1);
     const lvl2 = auraRadiusAt(2);
-    expect(lvl2).toBeCloseTo(base * 1.2);
+    const lvl3 = auraRadiusAt(3);
+    expect(lvl1).toBeCloseTo(POWERS_VALUES.AURA_BASE_RADIUS);
+    expect(lvl2).toBeCloseTo(POWERS_VALUES.AURA_BASE_RADIUS * (1 + inc));
+    expect(lvl3).toBeCloseTo(POWERS_VALUES.AURA_BASE_RADIUS * (1 + inc * 2));
   });
   it('aura dps linear', () => {
     const d1 = auraDpsAt(1);
