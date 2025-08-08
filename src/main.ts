@@ -90,7 +90,6 @@ function wireMenu() {
     document.getElementById('btnResetMeta')?.addEventListener('click', () => {
         if (confirm('Reset all meta progress?')) { localStorage.clear(); location.reload(); }
     });
-    wireDevOptions();
 }
 
 // Menu navigation (keyboard + controller)
@@ -258,7 +257,9 @@ function bootstrap() {
 bootstrap();
 
 // ---------------- Dev Options (env-controlled) ----------------
+let devOptionsWired = false;
 function wireDevOptions() {
+    if (devOptionsWired) return;
     const btnExport = document.getElementById('btnDebugExport') as HTMLButtonElement | null;
     const btnImport = document.getElementById('btnDebugImport') as HTMLButtonElement | null;
     const debugContainer = btnExport?.parentElement as HTMLElement | undefined;
@@ -269,6 +270,7 @@ function wireDevOptions() {
     if (!enabled) return; // remain hidden (display:none inline)
     debugContainer.style.display = 'block';
     console.info('[dev] Developer options enabled');
+    devOptionsWired = true;
     // Attach snapshot handlers lazily
     // Toast helper (scoped here for dev tools use)
     const pushToast = (msg: string, kind: 'info' | 'success' = 'info') => {
