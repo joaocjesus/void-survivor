@@ -23,12 +23,12 @@ function renderMeta() {
         if (!maxed) {
             const btn = document.createElement('button');
             btn.textContent = 'Buy';
-                const affordable = meta.shards >= cost;
-                btn.disabled = !affordable;
-                if (btn.disabled) btn.classList.add('disabled');
-            btn.onclick = () => { 
-                if (!affordable) { div.classList.add('deny'); setTimeout(()=>div.classList.remove('deny'),400); return; }
-                if (purchaseMeta(meta, def.id)) { renderMeta(); } 
+            const affordable = meta.shards >= cost;
+            btn.disabled = !affordable;
+            if (btn.disabled) btn.classList.add('disabled');
+            btn.onclick = () => {
+                if (!affordable) { div.classList.add('deny'); setTimeout(() => div.classList.remove('deny'), 400); return; }
+                if (purchaseMeta(meta, def.id)) { renderMeta(); }
             };
             div.appendChild(btn);
             // Allow clicking anywhere on card
