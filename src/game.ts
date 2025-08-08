@@ -512,7 +512,7 @@ export class Game {
                 const evt = new CustomEvent('voidsurvivor-restart');
                 window.dispatchEvent(evt);
             });
-            menuBtn?.addEventListener('click', () => { (document.getElementById('mainMenu')!).style.display = 'flex'; this.upgradeModal!.style.display = 'none'; });
+            menuBtn?.addEventListener('click', () => { (document.getElementById('mainMenu')!).style.display = 'flex'; this.upgradeModal!.style.display = 'none'; const hud = document.querySelector('.hud') as HTMLElement | null; if (hud) hud.style.display = 'none'; });
             // Simple keyboard/controller focus handling for the two buttons
             let goIndex = 0;
             const goButtons = [restart, menuBtn].filter(Boolean) as HTMLButtonElement[];

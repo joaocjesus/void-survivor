@@ -63,6 +63,7 @@ function hide(id: string) {
 
 function startRun() {
     hide('mainMenu'); hide('metaMenu');
+    const hud = document.querySelector('.hud') as HTMLElement | null; if (hud) hud.style.display = 'block';
     const root = document.getElementById('app');
     if (!root) throw new Error('Missing #app element');
     if (currentGame) { location.reload(); return; }
@@ -237,6 +238,8 @@ function setupMenuInput() {
 function bootstrap() {
     wireMenu();
     show('mainMenu');
+    // Hide HUD until a run starts
+    const hud = document.querySelector('.hud') as HTMLElement | null; if (hud) hud.style.display = 'none';
     collectVisibleMenuButtons();
     setupMenuInput();
     // Attempt to load debug module early (non-fatal if missing)
@@ -262,6 +265,7 @@ function bootstrap() {
         // Show main menu (ensure others hidden)
         hide('metaMenu'); hide('instructionsMenu'); hide('settingsMenu');
         show('mainMenu');
+    const hud = document.querySelector('.hud') as HTMLElement | null; if (hud) hud.style.display = 'none';
     });
 }
 
