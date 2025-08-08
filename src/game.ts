@@ -8,7 +8,7 @@ import { clamp, distSq } from './math';
 import { createBackground } from './game/background';
 import { updateHud, updateStatsOverlay } from './game/hud';
 import { createInputState, setupKeyboard, setupGamepad } from './game/input';
-import { FIRE_INTERVAL_BASE, POWERS_VALUES, UPGRADE_VALUES } from './constants/balance';
+import { FIRE_INTERVAL_BASE, POWERS_VALUES, UPGRADE_VALUES, POWERS_UPGRADE_VALUES } from './constants/balance';
 import { nextXpNeeded, spawnIntervalAt, auraRadiusAt, auraDpsAt } from './balanceUtils';
 
 
@@ -129,49 +129,35 @@ export class Game {
                 default: return 0;
             }
         };
-        const currentStatLine = (id: string, lvl: number): string => {
-            if (lvl <= 0) return '';
-            switch (id) {
-                case 'dmg': return `Level ${lvl} (+${((p.damage || base.damage) - base.damage)} damage)`;
-                case 'aspd': return `Level ${lvl} (${(((p.attackSpeed || base.attackSpeed) / base.attackSpeed - 1) * 100).toFixed(0)}% attack speed)`;
-                case 'speed': return `Level ${lvl} (${(((p.speed || base.speed) / base.speed - 1) * 100).toFixed(0)}% move speed)`;
-                case 'projspd': return `Level ${lvl} (${(((p.projectileSpeed || base.projectileSpeed) / base.projectileSpeed - 1) * 100).toFixed(0)}% projectile speed)`;
-                case 'hp': return `Level ${lvl} (+${((p.maxHp || base.maxHp) - base.maxHp)} max HP)`;
-                case 'pickup': return `Level ${lvl} (${(((p.pickupRange || base.pickupRange) / base.pickupRange - 1) * 100).toFixed(0)}% pickup range)`;
-                case 'regen': return `Level ${lvl} (+${((p.regen || 0) - (base.regen || 0)).toFixed(1)} HP/s regen)`;
-                case 'aura': return `Level ${lvl} (+${(lvl * 20).toFixed(0)}% aura strength)`;
-                case 'magicOrb': return `Level ${lvl} (${lvl} orb${lvl > 1 ? 's' : ''})`;
-                case 'magicOrbDmg': {
-                    const dmg = ((p as any).magicOrbDamage ?? (p as any).orbitDamage ?? 8);
-                    return `Level ${lvl} (Orb Damage: ${dmg})`;
-                }
-                default: return '';
-            }
-        };
         for (const u of choices) {
             const div = document.createElement('button');
             div.className = 'upgrade';
-            const lvl = calcLevel(u.id);
+            const increments = calcLevel(u.id); // number of times upgrade already taken (0 = none)
+            const lvl = powerIds.has(u.id) ? increments : increments + 1; // for non-power: base is Level 1
             const nextLevel = lvl + 1;
             // Power handling (aura / magicOrb)
             if (powerIds.has(u.id)) {
                 div.classList.add('power');
-                if (lvl === 0) {
+                if (increments === 0) {
                     div.innerHTML = `<h3>${u.name}</h3><div class='body'><div class='bodyText'>Unlock ${u.name}</div></div>`;
                 } else {
                     // Build comparison grid
-                    const current = currentStatLine(u.id, lvl);
                     // Re-use description but strip unlock prefix
                     const nextDesc = u.description.replace(/^Unlock \/\s*/i, '');
                     let statLabelCurrent = '';
                     let statLabelNext = '';
                     if (u.id === 'aura') {
-                        statLabelCurrent = `Aura Strength: +${(lvl * 20).toFixed(0)}%`;
-                        statLabelNext = `Aura Strength: +${(nextLevel * 20).toFixed(0)}%`;
+                        const incPct = POWERS_UPGRADE_VALUES.AURA_RADIUS_INCREMENT;
+                        const curBonus = (increments * incPct).toFixed(0);
+                        const nextBonus = ((increments + 1) * incPct).toFixed(0);
+                        statLabelCurrent = `Aura Size: +${curBonus}%`;
+                        statLabelNext = `Aura Size: +${nextBonus}% (+${incPct.toFixed(0)}%)`;
                     } else if (u.id === 'magicOrb') {
                         statLabelCurrent = `Orbs: ${lvl}`;
-                        statLabelNext = `Orbs: ${nextLevel}`;
+                        statLabelNext = `Orbs: ${nextLevel} (+1)`;
                     }
+                    // Highlight increment part in next label
+                    statLabelNext = statLabelNext.replace(/\(\+[0-9.]+%?\)/g, m => `<span class='incPct'>${m}</span>`);
                     div.innerHTML = `<h3>${u.name}</h3>
                         <div class='body'><div class='power-compare'>
                             <div class='col current'>
@@ -186,26 +172,92 @@ export class Game {
                         </div></div>`;
                 }
             } else {
-                // Non-power upgrades single block text
-                const lines: string[] = [];
-                lines.push(`Level ${nextLevel}`);
-                switch (u.id) {
-                    case 'dmg': lines.push('Damage: +5'); break;
-                    case 'aspd': lines.push('Attack Speed: +25%'); break;
-                    case 'speed': lines.push('Move Speed: +10%'); break;
-                    case 'projspd': lines.push('Projectile Speed: +20%'); break;
-                    case 'hp': lines.push('Max HP: +25'); lines.push('Instant Heal: 25'); break;
-                    case 'pickup': lines.push('Pickup Range: +50%'); break;
-                    case 'regen': lines.push('Regeneration: +0.5 HP/s'); break;
-                    case 'magicOrbDmg': lines.push('Orb Damage: +5'); break;
-                    default: lines.push(u.description.replace(/^Unlock \/\s*/i, ''));
-                }
-                const curLine = currentStatLine(u.id, lvl);
-                const bodyHtml = lines.map(l => `<div>${l}</div>`).join('');
-                div.innerHTML = `<h3>${u.name}</h3><div class='body'><p style='line-height:1.55'>${bodyHtml}${curLine ? `<div style='margin-top:10px; opacity:.55; font-size:12px;'>${curLine}</div>` : ''}</p></div>`;
+                // Non-power upgrades: comparison view (current vs next), base stats are Level 1 values
+        const currentValueLine = (id: string, inc: number): string => {
+                    switch (id) {
+            case 'dmg': return `Damage: ${(base.damage + inc * UPGRADE_VALUES.DAMAGE_PLUS).toFixed(0)}`;
+            case 'aspd': return `Attack Speed: ${(base.attackSpeed * Math.pow(UPGRADE_VALUES.ATTACK_SPEED_MULT, inc)).toFixed(2)}`;
+            case 'speed': return `Move Speed: ${(base.speed * Math.pow(UPGRADE_VALUES.MOVE_SPEED_MULT, inc)).toFixed(0)}`;
+            case 'projspd': return `Projectile Speed: ${(base.projectileSpeed * Math.pow(UPGRADE_VALUES.PROJECTILE_SPEED_MULT, inc)).toFixed(0)}`;
+            case 'hp': return `Max HP: ${(base.maxHp + inc * UPGRADE_VALUES.MAX_HP_PLUS).toFixed(0)}`;
+            case 'pickup': return `Pickup Range: ${(base.pickupRange * Math.pow(UPGRADE_VALUES.PICKUP_RANGE_MULT, inc)).toFixed(0)}`;
+            case 'regen': return `Regeneration: ${(base.regen + inc * UPGRADE_VALUES.REGEN_PLUS).toFixed(1)}`;
+            case 'magicOrbDmg': return `Orb Damage: ${(POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE + inc * POWERS_UPGRADE_VALUES.MAGIC_ORB_DAMAGE_INCREMENT).toFixed(0)}`;
+                        default: return '';
+                    }
+                };
+                const nextValueLine = (id: string, inc: number): string => {
+                    switch (id) {
+                        case 'dmg': {
+                            const cur = base.damage + inc * UPGRADE_VALUES.DAMAGE_PLUS;
+                            const nxt = cur + UPGRADE_VALUES.DAMAGE_PLUS;
+                            return `Damage: ${nxt} (+${UPGRADE_VALUES.DAMAGE_PLUS})`;
+                        }
+                        case 'aspd': {
+                            const cur = base.attackSpeed * Math.pow(UPGRADE_VALUES.ATTACK_SPEED_MULT, inc);
+                            const nxt = cur * UPGRADE_VALUES.ATTACK_SPEED_MULT;
+                            return `Attack Speed: ${nxt.toFixed(2)} (+${((nxt / base.attackSpeed - 1) * 100).toFixed(0)}%)`;
+                        }
+                        case 'speed': {
+                            const curMult = Math.pow(UPGRADE_VALUES.MOVE_SPEED_MULT, inc);
+                            const nxtMult = curMult * UPGRADE_VALUES.MOVE_SPEED_MULT;
+                            const nxtVal = base.speed * nxtMult;
+                            return `Move Speed: ${nxtVal.toFixed(0)} (+${((UPGRADE_VALUES.MOVE_SPEED_MULT - 1) * 100).toFixed(0)}%)`;
+                        }
+                        case 'projspd': {
+                            const curMult = Math.pow(UPGRADE_VALUES.PROJECTILE_SPEED_MULT, inc);
+                            const nxtMult = curMult * UPGRADE_VALUES.PROJECTILE_SPEED_MULT;
+                            const nxtVal = base.projectileSpeed * nxtMult;
+                            return `Projectile Speed: ${nxtVal.toFixed(0)} (+${((nxtMult - 1) * 100).toFixed(0)}%)`;
+                        }
+                        case 'hp': {
+                            const nxt = base.maxHp + (inc + 1) * UPGRADE_VALUES.MAX_HP_PLUS;
+                            return `Max HP: ${nxt} (+${UPGRADE_VALUES.MAX_HP_PLUS})`;
+                        }
+                        case 'pickup': {
+                            const curMult = Math.pow(UPGRADE_VALUES.PICKUP_RANGE_MULT, inc);
+                            const nxtMult = curMult * UPGRADE_VALUES.PICKUP_RANGE_MULT;
+                            const nxtVal = base.pickupRange * nxtMult;
+                            return `Pickup Range: ${nxtVal.toFixed(0)} (+${((UPGRADE_VALUES.PICKUP_RANGE_MULT - 1) * 100).toFixed(0)}%)`;
+                        }
+                        case 'regen': {
+                            const nxt = base.regen + (inc + 1) * UPGRADE_VALUES.REGEN_PLUS;
+                            return `Regeneration: ${nxt.toFixed(1)} (+${UPGRADE_VALUES.REGEN_PLUS})`;
+                        }
+                        case 'magicOrbDmg': {
+                            const nxt = POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE + (inc + 1) * POWERS_UPGRADE_VALUES.MAGIC_ORB_DAMAGE_INCREMENT;
+                            return `Orb Damage: ${nxt} (+${POWERS_UPGRADE_VALUES.MAGIC_ORB_DAMAGE_INCREMENT})`;
+                        }
+                        default: return '';
+                    }
+                };
+                const currentStat = currentValueLine(u.id, increments);
+                let nextStat = nextValueLine(u.id, increments);
+                // Highlight increases (numeric or percentage) in green including parentheses
+                nextStat = nextStat.replace(/\(\+[0-9.]+%?\)/g, m => `<span class='incPct'>${m}</span>`);
+                const extraNote = u.id === 'hp' ? `<div class='note' style='opacity:.6;font-size:11px;margin-top:6px;'>On upgrade: Heal ${UPGRADE_VALUES.MAX_HP_HEAL}</div>` : '';
+                div.innerHTML = `<h3>${u.name}</h3>
+                    <div class='body'><div class='power-compare'>
+                        <div class='col current'>
+                            <div class='lvl'>Level ${lvl}</div>
+                            <div class='stat'>${currentStat}</div>
+                        </div>
+                        <div class='arrowDown'><div class='arrowIcon'>&darr;</div></div>
+                        <div class='col next'>
+                            <div class='lvl'>Level ${nextLevel}</div>
+                            <div class='stat'>${nextStat}</div>
+                        </div>
+                    </div>${extraNote}</div>`;
             }
             div.onclick = () => this.chooseUpgrade(u);
             this.upgradeChoicesEl.appendChild(div);
+        }
+        // Inject style for increment percentage if not present
+        if (!document.getElementById('upgradeIncStyle')) {
+            const st = document.createElement('style');
+            st.id = 'upgradeIncStyle';
+            st.textContent = `.incPct{color:#4caf50;font-weight:600;}`;
+            document.head.appendChild(st);
         }
         // Apply initial highlight for controller users
         this.applyUpgradeSelectionHighlight();
