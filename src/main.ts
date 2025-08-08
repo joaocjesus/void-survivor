@@ -266,22 +266,37 @@ function wireDevOptions() {
     const env = (import.meta as any).env || {};
     // Only allow official Vite-exposed variable
     const enabled = env.VITE_DEV_OPTIONS === 'true';
-    if (!enabled) {
-        debugContainer.style.display = 'none';
-        return;
-    }
+    if (!enabled) return; // remain hidden (display:none inline)
+    debugContainer.style.display = 'block';
     console.info('[dev] Developer options enabled');
     // Attach snapshot handlers lazily
     btnExport.addEventListener('click', async () => {
-        if (!currentGame) { alert('Start a run first'); return; }
         const { buildSnapshot, downloadSnapshot } = await import('./save');
-        const snap = buildSnapshot(currentGame);
-        if (snap) downloadSnapshot(snap);
+        let snap = currentGame ? buildSnapshot(currentGame) : { version: 1, timestamp: Date.now(), meta };
+        if (snap) downloadSnapshot(snap as any);
     });
     btnImport.addEventListener('click', async () => {
-        if (!currentGame) { alert('Start a run first'); return; }
         const { promptLoadSnapshot, applySnapshot } = await import('./save');
-        promptLoadSnapshot(snap => applySnapshot(currentGame!, snap));
+        promptLoadSnapshot(snap => {
+            if (currentGame) {
+                applySnapshot(currentGame!, snap as any);
+            } else {
+                // Merge into global meta when no active run
+                meta.shards = Math.max(meta.shards, snap.meta.shards);
+                meta.purchased = { ...meta.purchased, ...snap.meta.purchased };
+                meta.stats.totalKills = Math.max(meta.stats.totalKills, snap.meta.stats.totalKills);
+                meta.stats.totalTime = Math.max(meta.stats.totalTime, snap.meta.stats.totalTime);
+                meta.stats.runs = Math.max(meta.stats.runs, snap.meta.stats.runs);
+                meta.stats.bestTime = Math.max(meta.stats.bestTime, snap.meta.stats.bestTime);
+                saveMeta(meta);
+                const shardsEl = document.getElementById('metaShards');
+                if (shardsEl) shardsEl.textContent = `Shards: ${meta.shards}`;
+                // If meta menu open, rerender to reflect new levels
+                const metaVisible = document.getElementById('metaMenu')?.style.display !== 'none';
+                if (metaVisible) renderMeta();
+                console.info('[dev] Meta snapshot imported without active run');
+            }
+        });
     });
     console.info('[dev] Snapshot import/export enabled via DEV_OPTIONS');
 }
