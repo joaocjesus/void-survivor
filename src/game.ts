@@ -233,14 +233,14 @@ export class Game {
         setupKeyboard(this.input, this.gs, {
             onPause: () => { if (this.upgradeModal && this.upgradeModal.style.display === 'flex') return; this.openPauseMenu(); },
             onResume: () => { const pm = document.getElementById('pauseMenu'); if (pm && pm.style.display === 'flex') this.closePauseMenu(); },
-            toggleStats: () => { (this as any)._statsVisible = !(this as any)._statsVisible; updateStatsOverlay(this.gs); },
+            toggleStats: () => { (this.gs as any)._statsVisible = !(this.gs as any)._statsVisible; updateStatsOverlay(this.gs); },
             onUpgradeNav: (dir) => { this.upgradeSelIndex = Math.max(0, Math.min(this.gs.offeredUpgrades.length - 1, this.upgradeSelIndex + dir)); this.applyUpgradeSelectionHighlight(); },
             onUpgradeConfirm: () => { const sel = this.gs.offeredUpgrades[this.upgradeSelIndex]; if (sel) this.chooseUpgrade(sel); },
             lastInputDeviceRef: lastInputRef
         });
         setupGamepad(this.input, this.gs, {
             onPause: () => { const pm = document.getElementById('pauseMenu'); if (pm && pm.style.display === 'flex') this.closePauseMenu(); else if (!this.gs.paused) this.openPauseMenu(); },
-            toggleStats: () => { (this as any)._statsVisible = !(this as any)._statsVisible; updateStatsOverlay(this.gs); },
+            toggleStats: () => { (this.gs as any)._statsVisible = !(this.gs as any)._statsVisible; updateStatsOverlay(this.gs); },
             onUpgradeNav: (dir) => { this.upgradeSelIndex = Math.max(0, Math.min(this.gs.offeredUpgrades.length - 1, this.upgradeSelIndex + dir)); this.applyUpgradeSelectionHighlight(); },
             onUpgradeConfirm: () => { const sel = this.gs.offeredUpgrades[this.upgradeSelIndex]; if (sel) this.chooseUpgrade(sel); },
             lastInputDeviceRef: lastInputRef
