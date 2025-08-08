@@ -1,5 +1,6 @@
 import { Game } from './game';
-import { META_UPGRADES, buildStartStats, loadMeta, purchaseMeta, saveMeta, refundAllMeta, resetMeta, computeSpentShards, refundState } from './meta';
+import { META_UPGRADES, buildStartStats, loadMeta, purchaseMeta, saveMeta, resetMeta } from './meta';
+import { updateRefundButton, handleRefundClick } from './ui/metaRefund';
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
@@ -51,13 +52,7 @@ function renderMeta() {
     // Reapply focus after rerender (e.g., purchase)
     applyMetaFocus();
     // Update refund button state
-    const refundBtn = document.getElementById('btnRefundMeta') as HTMLButtonElement | null;
-    if (refundBtn) {
-        const state = refundState(meta);
-        refundBtn.disabled = state.disabled;
-        refundBtn.classList.toggle('disabled', refundBtn.disabled);
-        refundBtn.title = state.disabled ? 'No purchased upgrades to refund' : '';
-    }
+    updateRefundButton(meta, document.getElementById('btnRefundMeta') as HTMLButtonElement | null);
 }
 
 function show(id: string) {
@@ -106,12 +101,12 @@ function wireMenu() {
         }
     });
     document.getElementById('btnRefundMeta')?.addEventListener('click', () => {
-        const spent = computeSpentShards(meta);
-        if (spent === 0) { return; }
-        if (confirm('Refund all purchased meta upgrades? You will get all spent shards back.')) {
-            const { refunded } = refundAllMeta(meta);
-            renderMeta(); // refresh shards + list + button state
-            alert(`Refunded ${refunded} shards.`);
+        const shardsEl = document.getElementById('metaShards');
+        const refundBtn = document.getElementById('btnRefundMeta') as HTMLButtonElement | null;
+        const refunded = handleRefundClick(meta, shardsEl, refundBtn);
+        if (refunded) {
+            // Re-render meta upgrades list to reset levels display
+            renderMeta();
         }
     });
 }
