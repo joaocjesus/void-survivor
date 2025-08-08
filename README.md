@@ -28,6 +28,16 @@ npm run dev
 
 Open the printed local URL (usually http://localhost:5173).
 
+### Developer / Debug Options
+
+Enable snapshot export/import (meta progression only) in the Settings menu by starting the dev server with:
+
+```
+VITE_DEV_OPTIONS=true npm run dev
+```
+
+This reveals a hidden Debug section with buttons to Export (download a `void-survivor-meta-<timestamp>.json`) and Import a snapshot. Importing without an active run merges meta progression (shards, purchased upgrades, aggregate stats). Snapshot JSON files matching `*-snapshot.json` are ignored by git.
+
 ## Next Ideas
 - More enemy variety & behaviors
 - Additional weapon archetypes / secondary weapons
