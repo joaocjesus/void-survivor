@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+*.tmp
+pnpm-lock.yaml
+*.local
+coverage/
+vite.config.timestamp-*
