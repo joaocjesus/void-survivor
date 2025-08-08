@@ -3,6 +3,7 @@ import { Entity, GameState, UpgradeDef, PlayerStartStats, MetaSave } from './typ
 import { playSound } from './audio';
 import { UPGRADES, pickRandomUpgrades, maybeAddDependentUpgrades } from './upgrades';
 import { spawnMob, spawnElite, spawnXp, fireProjectile, spawnParticle, spawnHitBurst, rollShardDrop, spawnShard } from './spawns';
+import { buildSnapshot, downloadSnapshot, promptLoadSnapshot, applySnapshot } from './save';
 
 // Simple deterministic seeded RNG (LCG) - TODO: unify with rng.ts later
 function randomRng(seed: number): () => number { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0x100000000; }; }
@@ -249,17 +250,24 @@ export class Game {
 
     chooseUpgrade(u: UpgradeDef) {
         const player = this.gs.entities.get(this.gs.playerId)!;
-    const beforeOrbit = ((player as any).magicOrbCount ?? (player as any).orbitCount) || 0;
+        const beforeOrbit = ((player as any).magicOrbCount ?? (player as any).orbitCount) || 0;
         u.apply(this.gs);
         // allow duplicates for now by pushing back
         this.gs.upgradePool.push(u);
-    maybeAddDependentUpgrades(this.gs, u.id);
+        maybeAddDependentUpgrades(this.gs, u.id);
         this.hideUpgradeChoices();
     }
 
     setupInput() {
         window.addEventListener('keydown', e => {
             this.lastInputDevice = 'keyboard';
+            // Quick save (F9) & quick load (F10) for debugging mid-run progression
+            if (e.code === 'F9') {
+                const snap = buildSnapshot(this);
+                if (snap) { downloadSnapshot(snap); console.info('[save] Run snapshot exported'); }
+            } else if (e.code === 'F10') {
+                promptLoadSnapshot(snap => applySnapshot(this, snap));
+            }
             if (e.key === 'w' || e.key === 'ArrowUp') this.input.up = true;
             if (e.key === 's' || e.key === 'ArrowDown') this.input.down = true;
             if (e.key === 'a' || e.key === 'ArrowLeft') this.input.left = true;
