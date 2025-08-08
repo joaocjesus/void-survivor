@@ -1,5 +1,5 @@
 import { Game } from './game';
-import { META_UPGRADES, buildStartStats, loadMeta, purchaseMeta, saveMeta } from './meta';
+import { META_UPGRADES, buildStartStats, loadMeta, purchaseMeta, saveMeta, refundAllMeta, resetMeta, computeSpentShards, refundState } from './meta';
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
@@ -50,6 +50,14 @@ function renderMeta() {
     }
     // Reapply focus after rerender (e.g., purchase)
     applyMetaFocus();
+    // Update refund button state
+    const refundBtn = document.getElementById('btnRefundMeta') as HTMLButtonElement | null;
+    if (refundBtn) {
+        const state = refundState(meta);
+        refundBtn.disabled = state.disabled;
+        refundBtn.classList.toggle('disabled', refundBtn.disabled);
+        refundBtn.title = state.disabled ? 'No purchased upgrades to refund' : '';
+    }
 }
 
 function show(id: string) {
@@ -91,7 +99,20 @@ function wireMenu() {
     document.getElementById('btnSettings')?.addEventListener('click', () => { hide('mainMenu'); show('settingsMenu'); });
     document.getElementById('btnBackSettings')?.addEventListener('click', goMain);
     document.getElementById('btnResetMeta')?.addEventListener('click', () => {
-        if (confirm('Reset all meta progress?')) { localStorage.clear(); location.reload(); }
+        if (confirm('Reset ALL progress (meta + stats)? This cannot be undone.')) {
+            resetMeta(meta);
+            renderMeta();
+            alert('Progress reset.');
+        }
+    });
+    document.getElementById('btnRefundMeta')?.addEventListener('click', () => {
+        const spent = computeSpentShards(meta);
+        if (spent === 0) { return; }
+        if (confirm('Refund all purchased meta upgrades? You will get all spent shards back.')) {
+            const { refunded } = refundAllMeta(meta);
+            renderMeta(); // refresh shards + list + button state
+            alert(`Refunded ${refunded} shards.`);
+        }
     });
 }
 

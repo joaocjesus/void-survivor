@@ -48,3 +48,36 @@ export function purchaseMeta(meta: MetaSave, id: string): boolean {
 }
 
 export function totalMetaLevel(meta: MetaSave, id: string) { return meta.purchased[id] || 0; }
+
+// Compute total shards spent on all purchased meta upgrades (summing actual incremental costs)
+export function computeSpentShards(meta: MetaSave): number {
+    let spent = 0;
+    for (const def of META_UPGRADES) {
+        const lvl = meta.purchased[def.id] || 0;
+        for (let i = 0; i < lvl; i++) spent += def.cost(i);
+    }
+    return spent;
+}
+
+// Refund all meta upgrades: return spent shards and reset purchased map
+export function refundAllMeta(meta: MetaSave): { refunded: number } {
+    const refunded = computeSpentShards(meta);
+    meta.shards += refunded;
+    meta.purchased = {};
+    saveMeta(meta);
+    return { refunded };
+}
+
+// Derive state for a potential refund button without touching the DOM
+export function refundState(meta: MetaSave): { disabled: boolean; spent: number } {
+    const spent = computeSpentShards(meta);
+    return { spent, disabled: spent === 0 };
+}
+
+// Hard reset: clear meta progress and stats (does not reload page)
+export function resetMeta(meta: MetaSave) {
+    meta.shards = 0;
+    meta.purchased = {};
+    meta.stats = { totalKills: 0, totalTime: 0, runs: 0, bestTime: 0 };
+    saveMeta(meta);
+}
