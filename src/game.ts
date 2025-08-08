@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import { Entity, GameState, UpgradeDef, PlayerStartStats, MetaSave } from './types';
 import { playSound } from './audio';
 import { UPGRADES, pickRandomUpgrades, maybeAddDependentUpgrades } from './upgrades';
+import { spawnMob, spawnElite, spawnXp, fireProjectile, spawnParticle, spawnHitBurst, rollShardDrop, spawnShard } from './spawns';
 
 // Simple deterministic seeded RNG (LCG) - TODO: unify with rng.ts later
 function randomRng(seed: number): () => number { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0x100000000; }; }
@@ -447,59 +448,10 @@ export class Game {
         });
     }
 
-    spawnMob() {
-        const id = this.gs.nextEntityId++;
-        const player = this.gs.entities.get(this.gs.playerId)!;
-        const angle = this.gs.rng() * Math.PI * 2;
-        const base = Math.max(this.app.renderer.width, this.app.renderer.height) * 0.6;
-        const spawnDist = base + this.gs.rng() * 120;
-        const sx = player.x + Math.cos(angle) * spawnDist;
-        const sy = player.y + Math.sin(angle) * spawnDist;
-        const hp = 8 + Math.floor(this.gs.time * 0.25); // weaker + slower scaling
-        const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 12, kind: 'mob', hp, maxHp: hp, damage: 4, speed: 36 + this.gs.rng() * 22 };
-        this.gs.entities.set(id, e);
-        const g = new PIXI.Container();
-        const body = new PIXI.Graphics(); body.circle(0, 0, e.radius).fill({ color: 0x8b1a1a }).stroke({ color: 0xff4d4d, width: 2 });
-        const hpRing = new PIXI.Graphics(); g.addChild(body); g.addChild(hpRing); (e as any).hpRing = hpRing;
-        g.x = sx; g.y = sy; this.app.stage.addChild(g); this.sprites.set(id, g);
-    }
-
-    spawnXp(x: number, y: number, value: number, elite: boolean = false) {
-        const id = this.gs.nextEntityId++;
-        // Clamp to viewport if outside
-        const w = this.app.renderer.width; const h = this.app.renderer.height;
-        if (x < 8) x = 8; else if (x > w - 8) x = w - 8;
-        if (y < 8) y = 8; else if (y > h - 8) y = h - 8;
-        // Slightly smaller gems now that glow improves visibility
-        const baseRadius = elite ? 5 : 4;
-        const e: Entity = { id, x, y, vx: 0, vy: 0, radius: baseRadius, kind: 'xp', value };
-        this.gs.entities.set(id, e);
-        const g = new PIXI.Container();
-        const glow = new PIXI.Graphics();
-        const baseColor = elite ? 0x9c27b0 : 0x2196f3; // purple vs blue
-        const strokeColor = elite ? 0xe1bee7 : 0x64b5f6;
-        const glowRadius = e.radius + (elite ? 9 : 7); // maintain presence while shrinking core
-        glow.circle(0, 0, glowRadius).fill({ color: baseColor, alpha: elite ? 0.12 : 0.08 });
-        const gem = new PIXI.Graphics();
-        gem.circle(0, 0, e.radius + (elite ? 1 : 0)).fill({ color: baseColor }).stroke({ color: strokeColor, width: elite ? 2 : 1 });
-        g.addChild(glow); g.addChild(gem);
-        (g as any).pulse = true; (g as any).elite = elite;
-        g.x = x; g.y = y; this.app.stage.addChild(g); this.sprites.set(id, g);
-    }
-
-    fireProjectile() {
-        const player = this.gs.entities.get(this.gs.playerId)!;
-        const id = this.gs.nextEntityId++;
-        const angle = pickAngle(this.gs) ?? this.gs.rng() * Math.PI * 2;
-        const speed = player.projectileSpeed || 280;
-        const life = 1.2;
-        const radius = 3; // smaller bullet per request
-        const e: Entity = { id, x: player.x, y: player.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius, kind: 'projectile', damage: player.damage, life };
-        this.gs.entities.set(id, e);
-        const g = new PIXI.Graphics(); g.circle(0, 0, radius).fill({ color: 0xffec8d }).stroke({ color: 0xffd54f, width: 1 });
-        g.x = player.x; g.y = player.y; this.app.stage.addChild(g); this.sprites.set(id, g);
-        playSound('shoot');
-    }
+    // spawning & projectile helpers now in spawns.ts
+    spawnMob() { spawnMob(this.gs, { app: this.app, sprites: this.sprites }); }
+    spawnXp(x: number, y: number, value: number, elite: boolean = false) { spawnXp(this.gs, { app: this.app, sprites: this.sprites }, x, y, value, elite); }
+    fireProjectile() { fireProjectile(this.gs, { app: this.app, sprites: this.sprites }); }
 
     levelUp() {
         this.gs.level++;
@@ -677,7 +629,7 @@ export class Game {
                 const r = radius + m.radius;
                 if (distSq(player.x, player.y, m.x, m.y) < r * r) {
                     m.hp = (m.hp || 0) - dps * dt; // continuous damage
-                    if (Math.random() < 0.02) this.spawnParticle(m.x, m.y, 0x66ffcc);
+                    if (Math.random() < 0.02) spawnParticle(this.gs, { app: this.app, sprites: this.sprites }, m.x, m.y, 0x66ffcc);
                 }
             }
         } else {
@@ -713,7 +665,7 @@ export class Game {
                         if (this.gs.time - last >= 1) {
                             m.hp = (m.hp || 0) - dmg; // single chunk
                             (m as any)._lastOrbitHit = this.gs.time;
-                            this.spawnHitBurst(m.x, m.y, 0xffb74d, 4);
+                            spawnHitBurst(this.gs, { app: this.app, sprites: this.sprites }, m.x, m.y, 0xffb74d, 4);
                         }
                     }
                 }
@@ -727,7 +679,7 @@ export class Game {
                 this.gs.kills++;
                 const elite = (m as any).elite;
                 if (elite) this.spawnXp(m.x, m.y, 20, true); else this.spawnXp(m.x, m.y, 2);
-                this.rollShardDrop(m.x, m.y, elite);
+                rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, m.x, m.y, elite);
                 passiveDeaths.push(m.id);
             }
         }
@@ -773,15 +725,15 @@ export class Game {
                     const r = m.radius + e.radius;
                     if (distSq(m.x, m.y, e.x, e.y) < r * r) {
                         m.hp! -= e.damage || 1;
-                        this.spawnHitBurst(e.x, e.y, 0xffd54f, 4);
+                        spawnHitBurst(this.gs, { app: this.app, sprites: this.sprites }, e.x, e.y, 0xffd54f, 4);
                         playSound('hit');
                         toRemove.push(e.id);
                         if (m.hp! <= 0) {
                             this.gs.kills++;
                             const elite = (m as any).elite;
                             if (elite) this.spawnXp(m.x, m.y, 20, true); else this.spawnXp(m.x, m.y, 2);
-                            this.rollShardDrop(m.x, m.y, elite);
-                            this.spawnHitBurst(m.x, m.y, 0xff4d4d, 10);
+                            rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, m.x, m.y, elite);
+                            spawnHitBurst(this.gs, { app: this.app, sprites: this.sprites }, m.x, m.y, 0xff4d4d, 10);
                             toRemove.push(m.id);
                         }
                         break;
@@ -859,71 +811,9 @@ export class Game {
         this.updateStatsOverlay();
     };
 
-    spawnParticle(x: number, y: number, color: number) {
-        const id = this.gs.nextEntityId++;
-        const life = 0.5 + Math.random() * 0.3;
-        const speed = 40 + Math.random() * 80;
-        const ang = Math.random() * Math.PI * 2;
-        const e: Entity = { id, x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, radius: 2, kind: 'particle', life, alpha: 1 };
-        this.gs.entities.set(id, e);
-        const g = new PIXI.Graphics();
-        g.circle(0, 0, e.radius).fill({ color, alpha: 1 });
-        g.x = x; g.y = y; this.app.stage.addChild(g); this.sprites.set(id, g);
-    }
-
-    spawnHitBurst(x: number, y: number, color: number, count: number) {
-        for (let i = 0; i < count; i++) this.spawnParticle(x, y, color);
-    }
-
-    // Spawn a shard (meta currency) with value scaling
-    spawnShard(x: number, y: number, value: number) {
-        const id = this.gs.nextEntityId++;
-        const w = this.app.renderer.width; const h = this.app.renderer.height;
-        if (x < 8) x = 8; else if (x > w - 8) x = w - 8;
-        if (y < 8) y = 8; else if (y > h - 8) y = h - 8;
-        const e: Entity = { id, x, y, vx: 0, vy: 0, radius: 5, kind: 'shard', value };
-        this.gs.entities.set(id, e);
-        const g = new PIXI.Container();
-        const glow = new PIXI.Graphics(); glow.circle(0, 0, e.radius + 6).fill({ color: 0xffd180, alpha: 0.08 });
-        const core = new PIXI.Graphics();
-        // diamond shape
-        core.moveTo(0, -4).lineTo(4, 0).lineTo(0, 4).lineTo(-4, 0).lineTo(0, -4).fill({ color: 0xffb74d }).stroke({ color: 0xffe0b2, width: 1 });
-        g.addChild(glow); g.addChild(core); (g as any).spin = true;
-        g.x = x; g.y = y; this.app.stage.addChild(g); this.sprites.set(id, g);
-    }
-
-    // Determine if a shard should drop (random or guaranteed for elites)
-    rollShardDrop(x: number, y: number, elite: boolean) {
-        // Base drop chance grows slightly over time (capped)
-        const baseChance = Math.min(0.05 + this.gs.time * 0.0005, 0.25); // 5% -> 25%
-        const drop = elite || (this.gs.rng() < baseChance);
-        if (!drop) return;
-        // Value scales with time & kills; elites 10x normal (mirrors xp elite ratio)
-        const baseVal = 1 + Math.floor(this.gs.time / 60 * 0.6) + Math.floor(this.gs.kills / 200);
-        const value = elite ? baseVal * 10 : baseVal;
-        this.spawnShard(x, y, value);
-    }
-
-    spawnElite() {
-        const id = this.gs.nextEntityId++;
-        const player = this.gs.entities.get(this.gs.playerId)!;
-        const angle = this.gs.rng() * Math.PI * 2;
-        const base = Math.max(this.app.renderer.width, this.app.renderer.height) * 0.6;
-        const spawnDist = base + this.gs.rng() * 140;
-        const sx = player.x + Math.cos(angle) * spawnDist;
-        const sy = player.y + Math.sin(angle) * spawnDist;
-        const hp = 120 + Math.floor(this.gs.time * 1.2);
-        const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 16, kind: 'mob', hp, maxHp: hp, damage: 10, speed: 30 + this.gs.rng() * 15 };
-        (e as any).elite = true;
-        this.gs.entities.set(id, e);
-        const g = new PIXI.Container();
-        const body = new PIXI.Graphics();
-        body.rect(-e.radius, -e.radius, e.radius * 2, e.radius * 2).fill({ color: 0x6a1b9a }).stroke({ color: 0xba68c8, width: 3 });
-        const hpRing = new PIXI.Graphics();
-        const glow = new PIXI.Graphics(); glow.rect(-e.radius - 6, -e.radius - 6, (e.radius + 6) * 2, (e.radius + 6) * 2).fill({ color: 0x9c27b0, alpha: 0.05 });
-        g.addChild(glow); g.addChild(body); g.addChild(hpRing); (e as any).hpRing = hpRing;
-        g.x = sx; g.y = sy; this.app.stage.addChild(g); this.sprites.set(id, g);
-    }
+    spawnShard(x: number, y: number, value: number) { spawnShard(this.gs, { app: this.app, sprites: this.sprites }, x, y, value); }
+    rollShardDrop(x: number, y: number, elite: boolean) { rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, x, y, elite); }
+    spawnElite() { spawnElite(this.gs, { app: this.app, sprites: this.sprites }); }
 
     updateStatsOverlay() {
         const el = document.getElementById('statsContent');
