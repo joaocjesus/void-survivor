@@ -90,6 +90,30 @@ function wireMenu() {
     document.getElementById('btnResetMeta')?.addEventListener('click', () => {
         if (confirm('Reset all meta progress?')) { localStorage.clear(); location.reload(); }
     });
+    // Debug snapshot buttons (only enabled when debug flag true)
+    const debugEnabled = location.hash.includes('debug') || localStorage.getItem('vs_debug') === '1';
+    const btnExport = document.getElementById('btnDebugExport') as HTMLButtonElement | null;
+    const btnImport = document.getElementById('btnDebugImport') as HTMLButtonElement | null;
+    if (btnExport && btnImport) {
+        if (!debugEnabled) {
+            btnExport.disabled = true; btnImport.disabled = true;
+            btnExport.style.opacity = '0.35'; btnImport.style.opacity = '0.35';
+            btnExport.title = btnImport.title = 'Debug features disabled';
+        } else {
+            // Lazy import save helpers only when needed
+            btnExport.addEventListener('click', async () => {
+                if (!currentGame) { alert('Start a run first'); return; }
+                const { buildSnapshot, downloadSnapshot } = await import('./save');
+                const snap = buildSnapshot(currentGame);
+                if (snap) downloadSnapshot(snap);
+            });
+            btnImport.addEventListener('click', async () => {
+                if (!currentGame) { alert('Start a run first'); return; }
+                const { promptLoadSnapshot, applySnapshot } = await import('./save');
+                promptLoadSnapshot(snap => applySnapshot(currentGame!, snap));
+            });
+        }
+    }
 }
 
 // Menu navigation (keyboard + controller)

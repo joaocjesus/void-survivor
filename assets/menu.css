@@ -63,6 +63,29 @@
     border-color: #c44747
 }
 
+/* Debug buttons (development only) */
+.menu-panel button.debug {
+    background: #2b2f3a;
+    border-color: #44506b;
+    position: relative;
+}
+.menu-panel button.debug:before {
+    content: 'DEV';
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    font-size: 10px;
+    padding: 2px 4px;
+    background: #39485c;
+    border-radius: 4px;
+    letter-spacing: .5px;
+    color: #9bb7ce;
+}
+.menu-panel button.debug:hover {
+    background: #353c49;
+    border-color: #5d89c2;
+}
+
 .menu-panel .small {
     margin-top: 22px;
     opacity: .45;
