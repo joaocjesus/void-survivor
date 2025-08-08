@@ -3,7 +3,10 @@ import { Entity, GameState, UpgradeDef, PlayerStartStats, MetaSave } from './typ
 import { playSound } from './audio';
 import { UPGRADES, pickRandomUpgrades, maybeAddDependentUpgrades } from './upgrades';
 import { spawnMob, spawnElite, spawnXp, fireProjectile, spawnParticle, spawnHitBurst, rollShardDrop, spawnShard } from './spawns';
-// (Removed unused snapshot imports)
+import { DARK_TEXTURE_PRESETS } from './backgroundPresets';
+
+// Base tile size for background procedural texture (increase for smoother appearance)
+const gridSquareSize = 512;
 
 // Simple deterministic seeded RNG (LCG) - TODO: unify with rng.ts later
 function randomRng(seed: number): () => number { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0x100000000; }; }
@@ -13,6 +16,103 @@ export interface InputState { up: boolean; down: boolean; left: boolean; right: 
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
 function distSq(x1: number, y1: number, x2: number, y2: number) { const dx = x1 - x2, dy = y1 - y2; return dx * dx + dy * dy; }
+
+// Procedurally generate a seamless dark noise texture for the background.
+// Approach: value noise on a coarse lattice bilinearly interpolated to a tile, with edge wrapping.
+function makeDarkTexture(app: PIXI.Application, opts?: { size?: number; cells?: number; baseColor?: number; variance?: number; contrast?: number; vignette?: boolean; octaves?: number; persistence?: number; lowFreqWeight?: number; brightness?: number; }): PIXI.Texture {
+    const size = opts?.size ?? gridSquareSize; // final tile resolution
+    const baseCells = opts?.cells ?? 24;        // base lattice resolution
+    const baseColor = opts?.baseColor ?? 0x101418;
+    const variance = opts?.variance ?? 18;      // max +/- adjustment applied to each RGB channel
+    const contrast = opts?.contrast ?? 1.06;    // simple contrast multiplier around mid
+    const useVignette = opts?.vignette ?? true;
+    const octaves = Math.max(1, opts?.octaves ?? 3);
+    const persistence = opts?.persistence ?? 0.55; // amplitude falloff per octave
+    const lowFreqWeight = opts?.lowFreqWeight ?? 1.1; // boost base octave slightly for broad shapes
+    const brightness = opts?.brightness ?? 1;          // post color multiplier (<1 darkens)
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    const img = ctx.createImageData(size, size);
+
+    // Pre-build lattices for each octave (wrapping)
+    const lattices: number[][][] = [];
+    for (let o = 0; o < octaves; o++) {
+        const cells = baseCells * (1 << o);
+        const lat: number[][] = [];
+        for (let y = 0; y <= cells; y++) {
+            const row: number[] = [];
+            for (let x = 0; x <= cells; x++) {
+                if (y === cells) row.push(lat[0][x]);
+                else if (x === cells) row.push(row[0]);
+                else row.push(Math.random());
+            }
+            lat.push(row);
+        }
+        lattices.push(lat);
+    }
+
+    const br = (baseColor >> 16) & 0xff;
+    const bgc = (baseColor >> 8) & 0xff;
+    const bb = baseColor & 0xff;
+
+    const smooth = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+
+    const sampleOctave = (o: number, px: number, py: number): number => {
+        const lat = lattices[o];
+        const cells = lat.length - 1;
+        const gx = (px / size) * cells; const gy = (py / size) * cells;
+        const x0 = Math.floor(gx); const y0 = Math.floor(gy);
+        const tx = smooth(gx - x0); const ty = smooth(gy - y0);
+        const x1 = x0 + 1; const y1 = y0 + 1;
+        const v00 = lat[y0][x0]; const v10 = lat[y0][x1];
+        const v01 = lat[y1][x0]; const v11 = lat[y1][x1];
+        const v0 = v00 + (v10 - v00) * tx;
+        const v1 = v01 + (v11 - v01) * tx;
+        return v0 + (v1 - v0) * ty;
+    };
+
+    for (let py = 0; py < size; py++) {
+        for (let px = 0; px < size; px++) {
+            let amp = 1;
+            let total = 0;
+            let norm = 0;
+            for (let o = 0; o < octaves; o++) {
+                let v = sampleOctave(o, px, py);
+                if (o === 0) v *= lowFreqWeight; // emphasize broad structure
+                total += v * amp;
+                norm += amp;
+                amp *= persistence;
+            }
+            let v = (total / norm); // 0..1 approx
+            v = ((v - 0.5) * contrast) + 0.5;
+            if (useVignette) {
+                const nx = (px / size) * 2 - 1;
+                const ny = (py / size) * 2 - 1;
+                const d = Math.min(1, Math.sqrt(nx * nx + ny * ny));
+                const vig = 1 - d * 0.32;
+                v *= vig;
+            }
+            const delta = (v - 0.5) * 2 * variance;
+            let r = br + delta;
+            let g = bgc + delta;
+            let b = bb + delta;
+            r = Math.max(0, Math.min(255, r * brightness));
+            g = Math.max(0, Math.min(255, g * brightness));
+            b = Math.max(0, Math.min(255, b * brightness));
+            const idx = (py * size + px) * 4;
+            img.data[idx] = r;
+            img.data[idx + 1] = g;
+            img.data[idx + 2] = b;
+            img.data[idx + 3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    const tex = PIXI.Texture.from(canvas);
+    // Ensure smooth scaling (avoid pixelated nearest sampling when resized by device resolution)
+    tex.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR;
+    return tex;
+}
 
 export class Game {
     app!: PIXI.Application;
@@ -38,21 +138,14 @@ export class Game {
         this.app = new PIXI.Application();
         await this.app.init({ resizeTo: parent, background: '#121416', antialias: true });
         parent.appendChild(this.app.canvas);
-
-        // Background grid (polish)
-        const bg = new PIXI.Graphics();
-        const drawBg = () => {
-            bg.clear();
-            const w = this.app.renderer.width; const h = this.app.renderer.height;
-            bg.rect(0, 0, w, h).fill({ color: 0x101418 });
-            const step = 64;
-            bg.stroke({ color: 0x1d262d, width: 1, alpha: 0.55 });
-            for (let x = 0; x < w; x += step) { bg.moveTo(x + 0.5, 0).lineTo(x + 0.5, h); }
-            for (let y = 0; y < h; y += step) { bg.moveTo(0, y + 0.5).lineTo(w, y + 0.5); }
-        };
-        drawBg();
-        this.app.stage.addChild(bg);
-        this.app.renderer.on('resize', drawBg);
+        // Always use the Default Subtle background preset
+        const darkTex = makeDarkTexture(this.app, { size: gridSquareSize, ...DARK_TEXTURE_PRESETS.default.options });
+        const darkBg = new PIXI.TilingSprite({ texture: darkTex, width: this.app.renderer.width, height: this.app.renderer.height });
+        this.app.stage.addChildAt(darkBg, 0);
+        this.app.renderer.on('resize', () => {
+            darkBg.width = this.app.renderer.width;
+            darkBg.height = this.app.renderer.height;
+        });
 
         this.gs = {
             time: 0,
@@ -360,6 +453,7 @@ export class Game {
         };
         requestAnimationFrame(pollGamepad);
     }
+
 
     openPauseMenu() {
         const pm = document.getElementById('pauseMenu');
@@ -767,7 +861,7 @@ export class Game {
                 }
             } else if (e.kind === 'shard') {
                 // pickup similar to xp but adds to runShards directly
-                const range = (player.pickupRange || 60) * 0.8; // slightly less generous magnet
+                const range = (player.pickupRange || 60) * 0.8;
                 const r = player.radius + e.radius + range * 0.15;
                 if (distSq(player.x, player.y, e.x, e.y) < r * r) {
                     const dx = player.x - e.x; const dy = player.y - e.y; const len = Math.hypot(dx, dy) || 1;
