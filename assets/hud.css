@@ -6,7 +6,7 @@
     padding: 4px 14px 4px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     pointer-events: none;
     z-index: 5;
     font-size: 13px;
@@ -191,7 +191,7 @@
 .xp-line {
     position: relative;
     width: 100%;
-    height: 12px;
+    height: 14px;
     /* taller for text breathing room */
     background: rgba(0, 0, 0, 0.55);
     border-radius: 999px;
