@@ -123,11 +123,10 @@
             <div style="margin-top:18px; font-size:12px; opacity:.55;">Esc / P or Start to toggle</div>
         </div>
     </div>
-    <div id="statsOverlay"
-        style="position:fixed; top:8px; right:8px; background:rgba(0,0,0,.55); backdrop-filter:blur(4px); padding:10px 14px; border-radius:8px; font-size:12px; line-height:1.4; display:none; max-width:240px;">
+    <div id="statsOverlay" class="stats-hidden">
         <strong>Run Stats</strong>
         <div id="statsContent"></div>
-        <div style="opacity:.55; margin-top:4px;">(Press Tab to toggle)</div>
+        <div class="stats-hint">(Press Tab to toggle)</div>
     </div>
     <script type="module" src="/src/main.ts"></script>
     <div id="toastRoot" class="toast-container" aria-live="polite" aria-atomic="true"></div>
