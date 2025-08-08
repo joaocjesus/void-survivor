@@ -69,6 +69,7 @@
     border-color: #44506b;
     position: relative;
 }
+
 .menu-panel button.debug:before {
     content: 'DEV';
     position: absolute;
@@ -81,6 +82,7 @@
     letter-spacing: .5px;
     color: #9bb7ce;
 }
+
 .menu-panel button.debug:hover {
     background: #353c49;
     border-color: #5d89c2;
