@@ -121,7 +121,7 @@ export class Game {
     input: InputState = { up: false, down: false, left: false, right: false };
     upgradeModal = document.getElementById('upgradeModal') as HTMLDivElement | null;
     upgradeChoicesEl = document.getElementById('upgradeChoices') as HTMLDivElement | null;
-    healthBar = document.getElementById('hpBar') as HTMLSpanElement | null;
+    healthBar = document.getElementById('hpBar') as HTMLDivElement | null;
     hpText = document.getElementById('hp') as HTMLSpanElement | null;
     hpMaxText = document.getElementById('hpMax') as HTMLSpanElement | null;
     // Controller selection index for upgrade cards
@@ -635,8 +635,10 @@ export class Game {
     }
 
     updateHud() {
-        (document.getElementById('time')!).textContent = String(Math.floor(this.gs.time));
-        (document.getElementById('kills')!).textContent = String(this.gs.kills);
+    const timeEl = document.getElementById('time');
+    if (timeEl) timeEl.textContent = String(Math.floor(this.gs.time));
+    const killsEl = document.getElementById('kills');
+    if (killsEl) killsEl.textContent = String(this.gs.kills);
         const shardEl = document.getElementById('metaShards');
         if (shardEl) shardEl.textContent = `Shards: ${(this.gs.meta.shards + (this.gs.runShards || 0))}`;
         const runShardEl = document.getElementById('runShards');
@@ -651,16 +653,31 @@ export class Game {
             if (Math.abs(rounded * 10 - Math.round(rounded * 10)) < 1e-6) return (rounded).toFixed(1);
             return (rounded).toFixed(2);
         };
-        (document.getElementById('xp')!).textContent = fmtXp(this.gs.xp);
-        (document.getElementById('xpNeeded')!).textContent = String(this.gs.xpNeeded);
-        (document.getElementById('level')!).textContent = String(this.gs.level);
-        const pctXp = (this.gs.xp / this.gs.xpNeeded) * 100;
-        (document.getElementById('xpBar') as HTMLSpanElement).style.width = pctXp + '%';
+    const levelEl = document.getElementById('level'); if (levelEl) levelEl.textContent = String(this.gs.level);
+    const pctXp = (this.gs.xp / this.gs.xpNeeded) * 100;
+    const xpBarDiv = document.getElementById('xpBar'); if (xpBarDiv) (xpBarDiv as HTMLElement).style.width = pctXp + '%';
+        const xpBarLabel = document.getElementById('xpBarLabel') as HTMLElement | null;
+        const statsVisible = (this as any)._statsVisible;
+        if (xpBarLabel) {
+            if (statsVisible) {
+                // Populate label only when stats overlay is shown
+                xpBarLabel.style.display = 'block';
+                xpBarLabel.textContent = `${fmtXp(this.gs.xp)} / ${this.gs.xpNeeded} (${Math.floor(pctXp)}%)`;
+                // Determine center contrast: if bar covers center (>50%), switch to dark text for better contrast
+                const centerCovered = pctXp >= 50;
+                xpBarLabel.style.color = centerCovered ? '#07130a' : '#ffffff';
+                xpBarLabel.style.textShadow = centerCovered ? '0 1px 2px rgba(255,255,255,.4)' : '0 1px 2px rgba(0,0,0,.6)';
+            } else {
+                // Hide label when stats overlay hidden
+                xpBarLabel.style.display = 'none';
+            }
+        }
         const p = this.gs.entities.get(this.gs.playerId)!;
         if (this.hpText && this.hpMaxText && this.healthBar) {
             this.hpText.textContent = Math.round(p.hp || 0).toString();
             this.hpMaxText.textContent = Math.round(p.maxHp || 0).toString();
-            this.healthBar.style.width = ((p.hp || 0) / (p.maxHp || 1)) * 100 + '%';
+            const pct = ((p.hp || 0) / (p.maxHp || 1)) * 100;
+            this.healthBar.style.width = pct + '%';
         }
     }
 

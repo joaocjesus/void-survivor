@@ -265,7 +265,7 @@ function bootstrap() {
         // Show main menu (ensure others hidden)
         hide('metaMenu'); hide('instructionsMenu'); hide('settingsMenu');
         show('mainMenu');
-    const hud = document.querySelector('.hud') as HTMLElement | null; if (hud) hud.style.display = 'none';
+        const hud = document.querySelector('.hud') as HTMLElement | null; if (hud) hud.style.display = 'none';
     });
 }
 

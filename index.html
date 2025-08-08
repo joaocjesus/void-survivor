@@ -67,13 +67,38 @@
             <button id="btnBackSettings" class="back-btn" style="margin-top:20px;">Back</button>
         </div>
     </div>
-    <div class="hud">
-        <div>Level: <span id="level">1</span> | XP: <span id="xp">0</span>/<span id="xpNeeded">10</span></div>
-        <div class="bar"><span id="xpBar"></span></div>
-        <div>HP: <span id="hp">100</span>/<span id="hpMax">100</span></div>
-        <div class="bar hp"><span id="hpBar"></span></div>
-        <div>Time: <span id="time">0.0</span>s | Kills: <span id="kills">0</span></div>
-        <div>Shards: <span id="runShards">0</span> (Total: <span id="totalShards">0</span>)</div>
+    <!-- Top HUD strip for XP + Time -->
+    <div id="topHud">
+        <div class="xp-line">
+            <div id="xpBar"></div>
+            <div id="xpBarLabel">0 / 10 (0%)</div>
+        </div>
+        <div id="statusRow">
+            <div id="levelHud">Level: <span id="level">1</span></div>
+            <div class="time-line"><span id="time">0</span>s</div>
+            <div id="killsHud" class="miniHud kills-inline">
+                <div class="killsWrap">
+                    <span class="killsLabel">Kills:</span>
+                    <span id="kills" class="killsValue">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Shards bottom-left -->
+    <div id="shardsHud" class="miniHud">
+        <div class="shardIcon" aria-hidden="true"></div>
+        <div class="shardText"><span id="runShards">0</span><span class="sep"> / </span><span id="totalShards">0</span>
+        </div>
+    </div>
+    <!-- HP bottom-center -->
+    <div id="hpHud" class="miniHud">
+        <div class="hpInner">
+            <div class="heartIcon" aria-hidden="true"></div>
+            <div class="hpNums"><span id="hp">100</span><span class="hpSep"> / </span><span id="hpMax">100</span></div>
+        </div>
+        <div class="hpBarShell">
+            <div id="hpBar"></div>
+        </div>
     </div>
     <div id="upgradeModal">
         <div class="panel">
