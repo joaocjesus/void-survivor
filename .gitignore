@@ -1,7 +1,6 @@
 node_modules
 dist
 *.log
-src/debug.ts
 node_modules/
 dist/
 .DS_Store
@@ -11,3 +10,4 @@ pnpm-lock.yaml
 *.local
 coverage/
 vite.config.timestamp-*
+*-snapshot.json
