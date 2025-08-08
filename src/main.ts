@@ -298,5 +298,5 @@ function wireDevOptions() {
             }
         });
     });
-    console.info('[dev] Snapshot import/export enabled via DEV_OPTIONS');
+    console.info('[dev] Snapshot import/export enabled via VITE_DEV_OPTIONS');
 }
