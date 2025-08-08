@@ -875,7 +875,7 @@ export class Game {
         rows.push(['XP Gain', 'x' + (p.xpGain || 1).toFixed(2)]);
         const auraLevel = (p as any).auraLevel || 0;
         if (auraLevel > 0) rows.push(['Magic Aura', String(auraLevel)]);
-    const orbCount = ((p as any).magicOrbCount ?? (p as any).orbitCount) || 0;
+        const orbCount = ((p as any).magicOrbCount ?? (p as any).orbitCount) || 0;
         if (orbCount > 0) rows.push(['Magic Orbs', String(orbCount)]);
         // Build two-column grid
         const grid = rows.map(r => `<div class='stat-label'>${r[0]}</div><div class='stat-val'>${r[1]}</div>`).join('');

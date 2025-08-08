@@ -70,7 +70,7 @@ let menuButtons: HTMLButtonElement[] = [];
 let menuIndex = 0;
 function collectVisibleMenuButtons() {
     menuButtons = [];
-    const menus = ['mainMenu','metaMenu','instructionsMenu','settingsMenu'];
+    const menus = ['mainMenu', 'metaMenu', 'instructionsMenu', 'settingsMenu'];
     for (const id of menus) {
         const el = document.getElementById(id);
         if (el && el.style.display !== 'none') {
@@ -96,7 +96,7 @@ function activateFocused() { if (menuButtons[menuIndex]) menuButtons[menuIndex].
 
 function setupMenuInput() {
     const keyHandler = (e: KeyboardEvent) => {
-        const vertical = ['ArrowUp','KeyW','KeyS','ArrowDown'];
+        const vertical = ['ArrowUp', 'KeyW', 'KeyS', 'ArrowDown'];
         if (vertical.includes(e.code)) { e.preventDefault(); }
         switch (e.code) {
             case 'ArrowUp': case 'KeyW': moveMenuFocus(-1); break;

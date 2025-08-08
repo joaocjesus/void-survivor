@@ -308,10 +308,11 @@
             border-color: #4ca3d8;
             transform: translateY(-2px);
         }
+
         .menu-panel button.focused {
             background: #2f3f4b;
             border-color: #4ca3d8;
-            box-shadow: 0 0 0 2px rgba(76,163,216,.35);
+            box-shadow: 0 0 0 2px rgba(76, 163, 216, .35);
             transform: translateY(-2px);
         }
 
@@ -507,12 +508,17 @@
         </div>
     </div>
     <!-- Pause Menu -->
-    <div id="pauseMenu" style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.6); z-index:15;">
-        <div class="panel" style="background:#1c1f24; padding:30px 46px 40px; border-radius:22px; text-align:center; width:340px; box-shadow:0 14px 38px -6px rgba(0,0,0,.65);">
+    <div id="pauseMenu"
+        style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.6); z-index:15;">
+        <div class="panel"
+            style="background:#1c1f24; padding:30px 46px 40px; border-radius:22px; text-align:center; width:340px; box-shadow:0 14px 38px -6px rgba(0,0,0,.65);">
             <h2 style="margin:0 0 22px; font-size:26px; letter-spacing:1px;">Paused</h2>
             <div class="pauseBtns" style="display:flex; flex-direction:column; gap:14px;">
-                <button id="btnResume" class="pmBtn" style="padding:14px 18px; font-size:16px; background:#25313b; color:#dfe9f1; border:1px solid #355062; border-radius:12px; cursor:pointer; transition:.15s background, border-color, transform;">Resume</button>
-                <button id="btnQuit" class="pmBtn" style="padding:14px 18px; font-size:16px; background:#25313b; color:#dfe9f1; border:1px solid #355062; border-radius:12px; cursor:pointer; transition:.15s background, border-color, transform;">Quit to Menu</button>
+                <button id="btnResume" class="pmBtn"
+                    style="padding:14px 18px; font-size:16px; background:#25313b; color:#dfe9f1; border:1px solid #355062; border-radius:12px; cursor:pointer; transition:.15s background, border-color, transform;">Resume</button>
+                <button id="btnQuit" class="pmBtn"
+                    style="padding:14px 18px; font-size:16px; background:#25313b; color:#dfe9f1; border:1px solid #355062; border-radius:12px; cursor:pointer; transition:.15s background, border-color, transform;">Quit
+                    to Menu</button>
             </div>
             <div style="margin-top:18px; font-size:12px; opacity:.55;">Esc / P or Start to toggle</div>
         </div>
