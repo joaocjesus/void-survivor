@@ -3,6 +3,8 @@ import { META_UPGRADES, buildStartStats, loadMeta, purchaseMeta, saveMeta } from
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
+// Dev options wiring guard must be declared before wireDevOptions definition / use
+let devOptionsWired = false;
 
 function renderMeta() {
     const list = document.getElementById('metaList');
@@ -257,20 +259,18 @@ function bootstrap() {
 bootstrap();
 
 // ---------------- Dev Options (env-controlled) ----------------
-let devOptionsWired = false;
 function wireDevOptions() {
-    if (devOptionsWired) return;
+    if (devOptionsWired) return; // idempotent guard
     const btnExport = document.getElementById('btnDebugExport') as HTMLButtonElement | null;
     const btnImport = document.getElementById('btnDebugImport') as HTMLButtonElement | null;
     const debugContainer = btnExport?.parentElement as HTMLElement | undefined;
     if (!btnExport || !btnImport || !debugContainer) return;
     const env = (import.meta as any).env || {};
     // Only allow official Vite-exposed variable
-    const enabled = env.VITE_DEV_OPTIONS === 'true';
-    if (!enabled) return; // remain hidden (display:none inline)
+    devOptionsWired = env.VITE_DEV_OPTIONS === 'true';
+    if (!devOptionsWired) return; // remain hidden (display:none inline)
     debugContainer.style.display = 'block';
     console.info('[dev] Developer options enabled');
-    devOptionsWired = true;
     // Attach snapshot handlers lazily
     // Toast helper (scoped here for dev tools use)
     const pushToast = (msg: string, kind: 'info' | 'success' = 'info') => {
@@ -324,5 +324,4 @@ function wireDevOptions() {
             pushToast('Import failed', 'info');
         }
     });
-    console.info('[dev] Snapshot import/export enabled via VITE_DEV_OPTIONS');
 }
