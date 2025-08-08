@@ -476,6 +476,27 @@
             box-shadow: 0 0 0 1px rgba(90, 169, 255, .35), 0 4px 16px rgba(0, 0, 0, .45);
         }
 
+        .meta-upgrade.deny {
+            animation: metaDeny .5s;
+        }
+
+        @keyframes metaDeny {
+            0% {
+                border-color: #ff5c5c;
+                box-shadow: 0 0 0 1px rgba(255, 92, 92, .4);
+            }
+
+            50% {
+                border-color: #2d3942;
+                box-shadow: none;
+            }
+
+            100% {
+                border-color: #2d3942;
+                box-shadow: none;
+            }
+        }
+
         .meta-upgrade h3 {
             margin: 0 0 8px;
             font-size: 17px;
@@ -492,6 +513,12 @@
             font-size: 14px;
             padding: 9px 12px;
         }
+        .meta-upgrade button.disabled {
+            opacity: .45;
+            cursor: not-allowed;
+            filter: grayscale(.3);
+        }
+        .meta-upgrade .cost.insufficient { color:#ff5c5c; font-weight:600; }
 
         .meta-upgrade .lvl {
             font-weight: 600;

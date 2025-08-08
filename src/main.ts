@@ -16,16 +16,38 @@ function renderMeta() {
         const cost = def.cost(lvl);
         const div = document.createElement('div');
         div.className = 'meta-upgrade' + (maxed ? ' locked' : '');
-        div.innerHTML = `<h3>${def.name} <span class='lvl'>${lvl}/${def.maxLevel}</span></h3><p>${def.description}</p><p style='margin:6px 0 26px;'>Cost: ${maxed ? '-' : cost}</p>`;
+        const affordable = meta.shards >= cost;
+        const costClasses = ['cost'];
+        if (!maxed && !affordable) costClasses.push('insufficient');
+        div.innerHTML = `<h3>${def.name} <span class='lvl'>${lvl}/${def.maxLevel}</span></h3><p>${def.description}</p><p style='margin:6px 0 26px;'>Cost: <span class='${costClasses.join(' ')}'>${maxed ? '-' : cost}</span></p>`;
         if (!maxed) {
             const btn = document.createElement('button');
             btn.textContent = 'Buy';
-            btn.disabled = meta.shards < cost;
-            btn.onclick = () => { if (purchaseMeta(meta, def.id)) { renderMeta(); } };
+                const affordable = meta.shards >= cost;
+                btn.disabled = !affordable;
+                if (btn.disabled) btn.classList.add('disabled');
+            btn.onclick = () => { 
+                if (!affordable) { div.classList.add('deny'); setTimeout(()=>div.classList.remove('deny'),400); return; }
+                if (purchaseMeta(meta, def.id)) { renderMeta(); } 
+            };
             div.appendChild(btn);
+            // Allow clicking anywhere on card
+            div.onclick = (e) => {
+                if ((e.target as HTMLElement).tagName === 'BUTTON') return; // button handles own click
+                if (btn.disabled) { div.classList.add('deny'); setTimeout(() => div.classList.remove('deny'), 400); return; }
+                btn.click();
+            };
         }
+        div.onmouseenter = () => {
+            // sync focus index to hovered card for smooth mouse->controller handoff
+            const cards = getMetaCards();
+            const idx = cards.indexOf(div);
+            if (idx >= 0) { metaFocusIndex = idx; applyMetaFocus(); }
+        };
         list.appendChild(div);
     }
+    // Reapply focus after rerender (e.g., purchase)
+    applyMetaFocus();
 }
 
 function show(id: string) {
