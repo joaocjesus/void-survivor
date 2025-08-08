@@ -13,19 +13,6 @@ export interface InputState { up: boolean; down: boolean; left: boolean; right: 
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
 function distSq(x1: number, y1: number, x2: number, y2: number) { const dx = x1 - x2, dy = y1 - y2; return dx * dx + dy * dy; }
-function pickAngle(gs: GameState): number | undefined {
-    // Aim at nearest mob; return undefined if no mobs so caller can randomize
-    const player = gs.entities.get(gs.playerId);
-    if (!player) return;
-    let target: Entity | undefined;
-    let best = Infinity;
-    for (const e of gs.entities.values()) {
-        if (e.kind !== 'mob') continue;
-        const d = distSq(player.x, player.y, e.x, e.y);
-        if (d < best) { best = d; target = e; }
-    }
-    if (target) return Math.atan2(target.y - player.y, target.x - player.x);
-}
 
 export class Game {
     app!: PIXI.Application;
