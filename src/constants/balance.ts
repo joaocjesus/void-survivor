@@ -6,7 +6,7 @@ export const START_STATS = {
     HP: 50,
     MAX_HP: 50,
     DAMAGE: 10,
-    SPEED: 100,
+    SPEED: 80,
     ATTACK_SPEED: 1,
     PROJECTILE_SPEED: 100,
     PICKUP_RANGE: 50,

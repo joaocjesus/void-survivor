@@ -1,6 +1,7 @@
 import { Game } from './game';
 import { META_UPGRADES, buildStartStats, loadMeta, purchaseMeta, saveMeta, resetMeta } from './meta';
 import { updateRefundButton, handleRefundClick } from './ui/metaRefund';
+import { confirmAction } from './ui/confirm';
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
@@ -93,22 +94,30 @@ function wireMenu() {
     document.getElementById('btnBackInstructions')?.addEventListener('click', goMain);
     document.getElementById('btnSettings')?.addEventListener('click', () => { hide('mainMenu'); show('settingsMenu'); });
     document.getElementById('btnBackSettings')?.addEventListener('click', goMain);
-    document.getElementById('btnResetMeta')?.addEventListener('click', () => {
-        if (confirm('Reset ALL progress (meta + stats)? This cannot be undone.')) {
+    document.getElementById('btnResetMeta')?.addEventListener('click', async () => {
+        const ok = await confirmAction('Reset ALL progress (meta + stats)?\nThis cannot be undone.', { acceptText: 'Reset', cancelText: 'Cancel' });
+        if (ok) {
             resetMeta(meta);
             renderMeta();
-            alert('Progress reset.');
+            try { alert('Progress reset.'); } catch { }
         }
     });
-    document.getElementById('btnRefundMeta')?.addEventListener('click', () => {
+    document.getElementById('btnRefundMeta')?.addEventListener('click', async () => {
         const shardsEl = document.getElementById('metaShards');
         const refundBtn = document.getElementById('btnRefundMeta') as HTMLButtonElement | null;
-        const refunded = handleRefundClick(meta, shardsEl, refundBtn);
-        if (refunded) {
-            // Re-render meta upgrades list to reset levels display
-            renderMeta();
-        }
+        const spentBefore = (refundBtn && refundBtn.disabled) ? 0 : undefined;
+        const ok = await confirmAction('Refund ALL purchased meta upgrades?\nYou will get every spent shard back.', { acceptText: 'Refund', cancelText: 'Cancel' });
+        if (!ok) return;
+        const refunded = handleRefundClick(meta, shardsEl, refundBtn, () => true, msg => console.info('[meta] alertMock', msg));
+        if (refunded) { renderMeta(); }
     });
+    // Debug helper: window.__refundAllMeta()
+    (window as any).__refundAllMeta = () => {
+        const shardsEl = document.getElementById('metaShards');
+        const refundBtn = document.getElementById('btnRefundMeta') as HTMLButtonElement | null;
+        return handleRefundClick(meta, shardsEl, refundBtn, () => true, msg => console.info('[meta] alertMock', msg));
+    };
+    try { console.info('[meta] Refund wiring complete', { btn: !!document.getElementById('btnRefundMeta') }); } catch { }
 }
 
 // Menu navigation (keyboard + controller)
