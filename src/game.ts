@@ -562,7 +562,15 @@ export class Game {
         if (runShardEl) runShardEl.textContent = String(this.gs.runShards || 0);
         const totalShardEl = document.getElementById('totalShards');
         if (totalShardEl) totalShardEl.textContent = String(this.gs.meta.shards + (this.gs.runShards || 0));
-        (document.getElementById('xp')!).textContent = String(this.gs.xp);
+        // Format XP to avoid floating precision noise (e.g., 3.4000000000000004)
+        const fmtXp = (v: number) => {
+            const rounded = Math.round(v * 100) / 100; // clamp to 2 decimals
+            // if effectively integer show no decimals; if one decimal suffice show one
+            if (Math.abs(rounded - Math.round(rounded)) < 1e-6) return String(Math.round(rounded));
+            if (Math.abs(rounded * 10 - Math.round(rounded * 10)) < 1e-6) return (rounded).toFixed(1);
+            return (rounded).toFixed(2);
+        };
+        (document.getElementById('xp')!).textContent = fmtXp(this.gs.xp);
         (document.getElementById('xpNeeded')!).textContent = String(this.gs.xpNeeded);
         (document.getElementById('level')!).textContent = String(this.gs.level);
         const pctXp = (this.gs.xp / this.gs.xpNeeded) * 100;
