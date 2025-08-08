@@ -28,8 +28,14 @@ function renderMeta() {
     }
 }
 
-function show(id: string) { const el = document.getElementById(id); if (el) el.style.display = 'flex'; }
-function hide(id: string) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+function show(id: string) {
+    const el = document.getElementById(id); if (el) el.style.display = 'flex';
+    if (id === 'metaMenu') { metaFocusIndex = 0; applyMetaFocus(); }
+}
+function hide(id: string) {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+    if (id === 'metaMenu') { getMetaCards().forEach(c => c.classList.remove('focused')); }
+}
 
 function startRun() {
     hide('mainMenu'); hide('metaMenu');
@@ -68,6 +74,32 @@ function wireMenu() {
 let menuButtons: HTMLButtonElement[] = [];
 let menuIndex = 0;
 let lastMenuInput: 'keyboard' | 'gamepad' = 'keyboard';
+// Meta upgrade grid navigation state
+let metaFocusIndex = 0;
+function getMetaCards(): HTMLElement[] {
+    const list = document.getElementById('metaList');
+    if (!list) return [];
+    return Array.from(list.querySelectorAll('.meta-upgrade')) as HTMLElement[];
+}
+function applyMetaFocus() {
+    const cards = getMetaCards();
+    cards.forEach((c, i) => { if (i === metaFocusIndex) c.classList.add('focused'); else c.classList.remove('focused'); });
+}
+function moveMetaFocus(dx: number, dy: number) {
+    const cards = getMetaCards(); if (!cards.length) return;
+    const cols = Math.max(1, Math.floor((document.getElementById('metaList')!.clientWidth) / 280));
+    const rows = Math.ceil(cards.length / cols);
+    let row = Math.floor(metaFocusIndex / cols); let col = metaFocusIndex % cols;
+    col = Math.min(cols - 1, Math.max(0, col + dx));
+    row = Math.min(rows - 1, Math.max(0, row + dy));
+    let newIndex = row * cols + col;
+    if (newIndex >= cards.length) newIndex = cards.length - 1;
+    metaFocusIndex = newIndex; applyMetaFocus(); ensureMetaVisible();
+}
+function ensureMetaVisible() {
+    const cards = getMetaCards(); const card = cards[metaFocusIndex]; if (!card) return;
+    card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
 function collectVisibleMenuButtons() {
     menuButtons = [];
     const menus = ['mainMenu', 'metaMenu', 'instructionsMenu', 'settingsMenu'];
@@ -97,6 +129,20 @@ function activateFocused() { if (menuButtons[menuIndex]) menuButtons[menuIndex].
 function setupMenuInput() {
     const keyHandler = (e: KeyboardEvent) => {
         lastMenuInput = 'keyboard';
+        // Meta grid navigation overrides while meta menu visible
+        const metaVisible = document.getElementById('metaMenu')?.style.display !== 'none';
+        if (metaVisible) {
+            if (['ArrowLeft', 'KeyA'].includes(e.code)) { moveMetaFocus(-1, 0); e.preventDefault(); return; }
+            if (['ArrowRight', 'KeyD'].includes(e.code)) { moveMetaFocus(1, 0); e.preventDefault(); return; }
+            if (['ArrowUp', 'KeyW'].includes(e.code)) { moveMetaFocus(0, -1); e.preventDefault(); return; }
+            if (['ArrowDown', 'KeyS'].includes(e.code)) { moveMetaFocus(0, 1); e.preventDefault(); return; }
+            if (['Enter', 'Space'].includes(e.code)) {
+                const card = getMetaCards()[metaFocusIndex];
+                const buy = card?.querySelector('button:not(.back-btn)') as HTMLButtonElement | null;
+                buy?.click(); e.preventDefault(); return;
+            }
+            if (e.code === 'Escape') { document.getElementById('btnBackMeta')?.click(); return; }
+        }
         const vertical = ['ArrowUp', 'KeyW', 'KeyS', 'ArrowDown'];
         if (vertical.includes(e.code)) { e.preventDefault(); }
         switch (e.code) {
@@ -114,6 +160,7 @@ function setupMenuInput() {
     // Basic gamepad polling for menus (separate from in-run handled in Game)
     let lastButtons: boolean[] = [];
     let lastAxisV = 0;
+    let lastAxisH = 0;
     const poll = () => {
         collectVisibleMenuButtons();
         const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -121,20 +168,41 @@ function setupMenuInput() {
         if (gp) {
             const buttons = gp.buttons.map(b => b.pressed);
             const axV = gp.axes[1] || 0;
+            const axH = gp.axes[0] || 0;
             const dead = 0.35;
             const vDir = Math.abs(axV) > dead ? (axV > 0 ? 1 : -1) : 0;
+            const hDir = Math.abs(axH) > dead ? (axH > 0 ? 1 : -1) : 0;
             const axisUsed = vDir !== 0;
-            const btnUsed = buttons.some((b, i) => b && [0, 12, 13].includes(i));
+            const btnUsed = buttons.some((b, i) => b && [0, 12, 13, 14, 15].includes(i)) || hDir !== 0;
             if (axisUsed || btnUsed) lastMenuInput = 'gamepad';
+            const metaVisible = document.getElementById('metaMenu')?.style.display !== 'none';
             if (lastMenuInput === 'gamepad') {
-                // D-pad up/down 12/13
-                const up = (buttons[12] && !lastButtons[12]) || (vDir === -1 && lastAxisV !== -1);
-                const down = (buttons[13] && !lastButtons[13]) || (vDir === 1 && lastAxisV !== 1);
-                if (up) moveMenuFocus(-1);
-                if (down) moveMenuFocus(1);
-                if (buttons[0] && !lastButtons[0]) activateFocused(); // A
+                if (metaVisible) {
+                    const up = (buttons[12] && !lastButtons[12]) || (vDir === -1 && lastAxisV !== -1);
+                    const down = (buttons[13] && !lastButtons[13]) || (vDir === 1 && lastAxisV !== 1);
+                    const left = (buttons[14] && !lastButtons[14]) || (hDir === -1 && lastAxisH !== -1);
+                    const right = (buttons[15] && !lastButtons[15]) || (hDir === 1 && lastAxisH !== 1);
+                    if (left) moveMetaFocus(-1, 0);
+                    if (right) moveMetaFocus(1, 0);
+                    if (up) moveMetaFocus(0, -1);
+                    if (down) moveMetaFocus(0, 1);
+                    if (buttons[0] && !lastButtons[0]) {
+                        const card = getMetaCards()[metaFocusIndex];
+                        const buy = card?.querySelector('button:not(.back-btn)') as HTMLButtonElement | null;
+                        buy?.click();
+                    }
+                    if (buttons[1] && !lastButtons[1]) { document.getElementById('btnBackMeta')?.click(); }
+                } else {
+                    // D-pad up/down 12/13 for vertical menus
+                    const up = (buttons[12] && !lastButtons[12]) || (vDir === -1 && lastAxisV !== -1);
+                    const down = (buttons[13] && !lastButtons[13]) || (vDir === 1 && lastAxisV !== 1);
+                    if (up) moveMenuFocus(-1);
+                    if (down) moveMenuFocus(1);
+                    if (buttons[0] && !lastButtons[0]) activateFocused(); // A
+                }
             }
             lastAxisV = vDir;
+            lastAxisH = hDir;
             lastButtons = buttons;
         }
         requestAnimationFrame(poll);

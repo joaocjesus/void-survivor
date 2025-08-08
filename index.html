@@ -327,6 +327,52 @@
             border-color: #c44747;
         }
 
+        /* Game Over specific */
+        .gameover-panel {
+            width: min(760px, 90%);
+            padding: 46px 60px 54px !important;
+        }
+
+        .goButtons {
+            display: flex;
+            gap: 34px;
+            justify-content: center;
+            margin-top: 34px;
+        }
+
+        .goButtons button {
+            flex: 1 1 0;
+            background: #262d33;
+            border: 1px solid #3a434b;
+            border-radius: 40px;
+            padding: 18px 10px;
+            font-size: 20px;
+            font-weight: 500;
+            letter-spacing: .5px;
+            color: #dfe7ef;
+            cursor: pointer;
+            transition: .18s background, .18s border-color, .18s box-shadow, .18s color;
+        }
+
+        .goButtons button:hover {
+            background: #2f3840;
+            border-color: #4ca3d8;
+        }
+
+        .goButtons button.selected,
+        .goButtons button:focus-visible {
+            outline: none;
+            background: #303e46;
+            border-color: #5aa9ff;
+            box-shadow: 0 0 0 2px rgba(90, 169, 255, .35);
+        }
+
+        .gameover-note {
+            margin-top: 34px;
+            font-size: 14px;
+            opacity: .55;
+        }
+
         .menu-panel .small {
             margin-top: 22px;
             opacity: .45;
@@ -345,10 +391,12 @@
 
         .meta-header {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 24px;
-            justify-content: space-between;
-            margin: -6px 0 10px;
+            justify-content: center;
+            gap: 6px;
+            margin: -4px 0 14px;
+            text-align: center;
         }
 
         .meta-title {
@@ -368,16 +416,17 @@
         }
 
         .meta-shards {
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 600;
-            margin: 4px 2px 14px;
+            margin: 0 0 6px;
+            text-align: center;
         }
 
         .meta-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-            gap: 20px;
-            padding-right: 4px;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 18px 20px;
+            padding: 12px 6px 12px 2px;
             /* room for scrollbar */
             overflow-y: auto;
             flex: 1 1 auto;
@@ -409,13 +458,22 @@
             line-height: 1.45;
             position: relative;
             box-shadow: 0 4px 16px rgba(0, 0, 0, .35);
-            transition: border-color .15s, background .15s, transform .15s;
+            transition: border-color .15s, background .15s, transform .15s, box-shadow .15s;
+            aspect-ratio: 1 / 1;
+            /* square cards */
+            display: flex;
+            flex-direction: column;
         }
 
         .meta-upgrade:hover {
             border-color: #3d9bff;
             background: #25303a;
             transform: translateY(-3px);
+        }
+
+        .meta-upgrade.focused {
+            border-color: #5aa9ff;
+            box-shadow: 0 0 0 1px rgba(90, 169, 255, .35), 0 4px 16px rgba(0, 0, 0, .45);
         }
 
         .meta-upgrade h3 {
@@ -461,10 +519,13 @@
     <div id="metaMenu" class="menu" style="display:none;">
         <div class="menu-panel meta-panel">
             <div class="meta-header">
-                <h2 class="meta-title">Meta Upgrades</h2><button id="btnBackMeta" class="back-btn">Back</button>
+                <h2 class="meta-title">Meta Upgrades</h2>
+                <div id="metaShards" class="meta-shards">Shards: 0</div>
             </div>
-            <div id="metaShards" class="meta-shards">Shards: 0</div>
             <div id="metaList" class="meta-list"></div>
+            <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+                <button id="btnBackMeta" class="back-btn">Back</button>
+            </div>
         </div>
     </div>
     <div id="instructionsMenu" class="menu" style="display:none;">
@@ -499,7 +560,6 @@
         <div class="bar hp"><span id="hpBar"></span></div>
         <div>Time: <span id="time">0.0</span>s | Kills: <span id="kills">0</span></div>
         <div>Shards: <span id="runShards">0</span> (Total: <span id="totalShards">0</span>)</div>
-        <div>Move: WASD / Arrows — Auto attacks, choose upgrades on level up.</div>
     </div>
     <div id="upgradeModal">
         <div class="panel">
