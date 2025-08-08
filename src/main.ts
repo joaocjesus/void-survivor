@@ -264,8 +264,18 @@ function wireDevOptions() {
     const debugContainer = btnExport?.parentElement as HTMLElement | undefined;
     if (!btnExport || !btnImport || !debugContainer) return;
     const env = (import.meta as any).env || {};
-    const enabled = env.DEV_OPTIONS === 'true'; // Provided by build environment
-    if (!enabled) { debugContainer.style.display = 'none'; return; }
+    // Vite only exposes vars prefixed with VITE_. Accept multiple sources for convenience.
+    const qp = new URLSearchParams(location.search);
+    const enabled = env.VITE_DEV_OPTIONS === 'true'
+        || env.DEV_OPTIONS === 'true' // in case manually injected via define
+        || qp.get('dev') === '1'
+        || localStorage.getItem('DEV_OPTIONS') === 'true'
+        || (window as any).DEV_OPTIONS === true;
+    if (!enabled) {
+        debugContainer.style.display = 'none';
+        return;
+    }
+    console.info('[dev] Developer options enabled');
     // Attach snapshot handlers lazily
     btnExport.addEventListener('click', async () => {
         if (!currentGame) { alert('Start a run first'); return; }
