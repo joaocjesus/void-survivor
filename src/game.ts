@@ -1,44 +1,13 @@
 import * as PIXI from 'pixi.js';
 import { Entity, GameState, UpgradeDef, PlayerStartStats, MetaSave } from './types';
 import { playSound } from './audio';
+import { UPGRADES, pickRandomUpgrades, maybeAddDependentUpgrades } from './upgrades';
 
-// Simple deterministic seeded RNG (LCG)
-function randomRng(seed: number): () => number {
-    let s = seed >>> 0;
-    return () => {
-        s = (s * 1664525 + 1013904223) >>> 0;
-        return s / 0x100000000;
-    };
-}
+// Simple deterministic seeded RNG (LCG) - TODO: unify with rng.ts later
+function randomRng(seed: number): () => number { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0x100000000; }; }
 
 export interface InputState { up: boolean; down: boolean; left: boolean; right: boolean; }
 
-// In-run upgrades including new powers
-const UPGRADES: UpgradeDef[] = [
-    { id: 'dmg', name: 'Sharpened Projectiles', description: '+5 damage', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.damage = (p.damage || 1) + 5; } },
-    { id: 'aspd', name: 'Attack Speed', description: 'Fire 25% faster', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.attackSpeed = (p.attackSpeed || 1) * 1.25; } },
-    { id: 'speed', name: 'Boots', description: '+10% move speed', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.speed = (p.speed || 120) * 1.1; } },
-    { id: 'projspd', name: 'Projectile Speed', description: '+20% projectile speed', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.projectileSpeed = (p.projectileSpeed || 280) * 1.2; } },
-    { id: 'hp', name: 'Max Health', description: '+25 max HP & heal 25', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.maxHp = (p.maxHp || 100) + 25; p.hp = Math.min((p.hp || 0) + 25, p.maxHp); } },
-    { id: 'pickup', name: 'Magnet', description: '+50% pickup range', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.pickupRange = (p.pickupRange || 60) * 1.5; } },
-    { id: 'regen', name: 'Regeneration', description: '+0.5 HP/s regen', apply: gs => { const p = gs.entities.get(gs.playerId)!; p.regen = (p.regen || 0) + 0.5; } },
-    { id: 'aura', name: 'Magic Aura', description: 'Unlock / +20% aura (damage field)', apply: gs => { const p = gs.entities.get(gs.playerId)!; (p as any).auraLevel = ((p as any).auraLevel || 0) + 1; } },
-    {
-        id: 'magicOrb', name: 'Magic Orbs', description: 'Unlock / +1 Magic Orb', apply: gs => {
-            const p = gs.entities.get(gs.playerId)!;
-            (p as any).magicOrbCount = ((p as any).magicOrbCount ?? (p as any).orbitCount ?? 0) + 1;
-            // mirror legacy key for any old code / saves
-            (p as any).orbitCount = (p as any).magicOrbCount;
-        }
-    },
-    {
-        id: 'magicOrbDmg', name: 'Magic Orb Damage', description: 'Magic Orb damage +5', apply: gs => {
-            const p = gs.entities.get(gs.playerId)!;
-            (p as any).magicOrbDamage = ((p as any).magicOrbDamage ?? (p as any).orbitDamage ?? 5) + 5;
-            (p as any).orbitDamage = (p as any).magicOrbDamage;
-        }
-    },
-];
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
 function distSq(x1: number, y1: number, x2: number, y2: number) { const dx = x1 - x2, dy = y1 - y2; return dx * dx + dy * dy; }
@@ -275,29 +244,15 @@ export class Game {
         this.gs.paused = false;
     }
 
-    pickRandomUpgrades(count: number): UpgradeDef[] {
-        const pool = [...this.gs.upgradePool];
-        const res: UpgradeDef[] = [];
-        while (pool.length && res.length < count) {
-            const idx = Math.floor(this.gs.rng() * pool.length);
-            res.push(pool.splice(idx, 1)[0]);
-        }
-        return res;
-    }
+    pickRandomUpgrades(count: number): UpgradeDef[] { return pickRandomUpgrades(this.gs, count); }
 
     chooseUpgrade(u: UpgradeDef) {
         const player = this.gs.entities.get(this.gs.playerId)!;
-        const beforeOrbit = ((player as any).magicOrbCount ?? (player as any).orbitCount) || 0;
+    const beforeOrbit = ((player as any).magicOrbCount ?? (player as any).orbitCount) || 0;
         u.apply(this.gs);
         // allow duplicates for now by pushing back
         this.gs.upgradePool.push(u);
-        if (u.id === 'magicOrb' && beforeOrbit === 0) {
-            // first time unlocking orbit -> add orbit damage upgrade to pool
-            if (!this.gs.upgradePool.some(x => x.id === 'magicOrbDmg')) {
-                const od = UPGRADES.find(x => x.id === 'magicOrbDmg');
-                if (od) this.gs.upgradePool.push(od);
-            }
-        }
+    maybeAddDependentUpgrades(this.gs, u.id);
         this.hideUpgradeChoices();
     }
 
