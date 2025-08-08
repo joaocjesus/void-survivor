@@ -1,9 +1,70 @@
-.menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,rgba(40,60,80,.15),rgba(0,0,0,.85));z-index:20}
-.menu-panel{background:#181c22;padding:32px 40px 40px;border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.55);text-align:center}
-.menu-panel h1{margin:0 0 24px;font-size:42px;letter-spacing:2px;background:linear-gradient(90deg,#4cc3ff,#b3fffa);-webkit-background-clip:text;background-clip:text;color:transparent}
-.menu-panel button{display:block;width:220px;margin:8px auto;padding:10px 14px;font-size:16px;background:#25313b;color:#dfe9f1;border:1px solid #355062;border-radius:10px;cursor:pointer;transition:.15s background,border-color,transform}
-.menu-panel button:hover{background:#2f3f4b;border-color:#4ca3d8;transform:translateY(-2px)}
-.menu-panel button.focused{background:#2f3f4b;border-color:#4ca3d8;box-shadow:0 0 0 2px rgba(76,163,216,.35);transform:translateY(-2px)}
-.menu-panel button.danger{background:#402424;border-color:#6b2d2d}
-.menu-panel button.danger:hover{background:#552d2d;border-color:#c44747}
-.menu-panel .small{margin-top:22px;opacity:.45;font-size:12px}
+.menu {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 40%, rgba(40, 60, 80, .15), rgba(0, 0, 0, .85));
+    z-index: 20
+}
+
+.menu-panel {
+    background: #181c22;
+    padding: 32px 40px 40px;
+    border-radius: 18px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .55);
+    text-align: center
+}
+
+.menu-panel h1 {
+    margin: 0 0 24px;
+    font-size: 42px;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, #4cc3ff, #b3fffa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent
+}
+
+.menu-panel button {
+    display: block;
+    width: 220px;
+    margin: 8px auto;
+    padding: 10px 14px;
+    font-size: 16px;
+    background: #25313b;
+    color: #dfe9f1;
+    border: 1px solid #355062;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: .15s background, border-color, transform
+}
+
+.menu-panel button:hover {
+    background: #2f3f4b;
+    border-color: #4ca3d8;
+    transform: translateY(-2px)
+}
+
+.menu-panel button.focused {
+    background: #2f3f4b;
+    border-color: #4ca3d8;
+    box-shadow: 0 0 0 2px rgba(76, 163, 216, .35);
+    transform: translateY(-2px)
+}
+
+.menu-panel button.danger {
+    background: #402424;
+    border-color: #6b2d2d
+}
+
+.menu-panel button.danger:hover {
+    background: #552d2d;
+    border-color: #c44747
+}
+
+.menu-panel .small {
+    margin-top: 22px;
+    opacity: .45;
+    font-size: 12px
+}
