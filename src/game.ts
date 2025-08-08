@@ -523,6 +523,8 @@ export class Game {
             const restart = document.getElementById('restartBtn') as HTMLButtonElement | null;
             const menuBtn = document.getElementById('mainMenuBtn') as HTMLButtonElement | null;
             restart?.addEventListener('click', () => {
+                // Close the game over modal before restarting
+                if (this.upgradeModal) this.upgradeModal.style.display = 'none';
                 const evt = new CustomEvent('voidsurvivor-restart');
                 window.dispatchEvent(evt);
             });
