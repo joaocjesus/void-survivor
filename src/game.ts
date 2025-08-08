@@ -310,11 +310,11 @@ export class Game {
             if (e.key === 'd' || e.key === 'ArrowRight') this.input.right = true;
             // Keyboard navigation for upgrade selection when paused
             if (this.gs.paused && this.gs.offeredUpgrades.length) {
-                if (['ArrowLeft','a','A'].includes(e.key)) {
+                if (['ArrowLeft', 'a', 'A'].includes(e.key)) {
                     this.upgradeSelIndex = Math.max(0, this.upgradeSelIndex - 1);
                     this.applyUpgradeSelectionHighlight();
                     e.preventDefault();
-                } else if (['ArrowRight','d','D'].includes(e.key)) {
+                } else if (['ArrowRight', 'd', 'D'].includes(e.key)) {
                     this.upgradeSelIndex = Math.min(this.gs.offeredUpgrades.length - 1, this.upgradeSelIndex + 1);
                     this.applyUpgradeSelectionHighlight();
                     e.preventDefault();
@@ -424,8 +424,54 @@ export class Game {
         pm.style.display = 'flex';
         const resume = document.getElementById('btnResume');
         const quit = document.getElementById('btnQuit');
-        resume?.addEventListener('click', () => this.closePauseMenu(), { once: true });
-        quit?.addEventListener('click', () => { pm.style.display = 'none'; (document.getElementById('mainMenu')!).style.display = 'flex'; }, { once: true });
+        // Remove old handlers if any by cloning (ensures multiple opens stay clean)
+        if (resume) {
+            const clone = resume.cloneNode(true) as HTMLButtonElement; resume.parentNode?.replaceChild(clone, resume);
+            clone.addEventListener('click', () => this.closePauseMenu(), { once: true });
+        }
+        if (quit) {
+            const cloneQ = quit.cloneNode(true) as HTMLButtonElement; quit.parentNode?.replaceChild(cloneQ, quit);
+            cloneQ.addEventListener('click', () => { pm.style.display = 'none'; (document.getElementById('mainMenu')!).style.display = 'flex'; this.gs.paused = false; }, { once: true });
+        }
+        const buttons = Array.from(pm.querySelectorAll('.pmBtn')) as HTMLButtonElement[];
+        let pIndex = 0;
+        const apply = () => buttons.forEach((b, i) => { if (i === pIndex) b.classList.add('focused'); else b.classList.remove('focused'); });
+        apply();
+        const keyHandler = (e: KeyboardEvent) => {
+            if (pm.style.display !== 'flex') return;
+            if (['ArrowUp', 'KeyW', 'ArrowDown', 'KeyS', 'Tab'].includes(e.code)) e.preventDefault();
+            switch (e.code) {
+                case 'ArrowUp': case 'KeyW': pIndex = (pIndex + buttons.length - 1) % buttons.length; apply(); break;
+                case 'ArrowDown': case 'KeyS': pIndex = (pIndex + 1) % buttons.length; apply(); break;
+                case 'Enter': case 'Space': buttons[pIndex].click(); break;
+                case 'Escape': case 'KeyP': this.closePauseMenu(); break;
+            }
+        };
+        const existing = (pm as any)._keyHandler as ((e: KeyboardEvent) => void) | undefined;
+        if (existing) window.removeEventListener('keydown', existing);
+        (pm as any)._keyHandler = keyHandler;
+        window.addEventListener('keydown', keyHandler);
+        // Lightweight gamepad nav for pause menu
+        let lastButtons: boolean[] = [];
+        let lastV = 0;
+        const pollPause = () => {
+            if (pm.style.display !== 'flex') return; // stop when closed
+            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+            const gp = pads && pads[0];
+            if (gp) {
+                const buttonsGp = gp.buttons.map(b => b.pressed);
+                const axV = gp.axes[1] || 0; const dead = 0.4; const v = Math.abs(axV) > dead ? (axV > 0 ? 1 : -1) : 0;
+                const up = (buttonsGp[12] && !lastButtons[12]) || (v === -1 && lastV !== -1);
+                const down = (buttonsGp[13] && !lastButtons[13]) || (v === 1 && lastV !== 1);
+                if (up) { pIndex = (pIndex + buttons.length - 1) % buttons.length; apply(); }
+                if (down) { pIndex = (pIndex + 1) % buttons.length; apply(); }
+                if (buttonsGp[0] && !lastButtons[0]) { buttons[pIndex].click(); }
+                if (buttonsGp[1] && !lastButtons[1]) { this.closePauseMenu(); }
+                lastButtons = buttonsGp; lastV = v;
+            }
+            requestAnimationFrame(pollPause);
+        };
+        requestAnimationFrame(pollPause);
     }
 
     closePauseMenu() {
