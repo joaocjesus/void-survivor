@@ -68,6 +68,7 @@ export class Game {
     hpMaxText = document.getElementById('hpMax') as HTMLSpanElement | null;
     // Controller selection index for upgrade cards
     private upgradeSelIndex: number = 0;
+    private lastInputDevice: 'keyboard' | 'gamepad' = 'keyboard';
 
     private endCb: (result: { time: number; kills: number; shards: number; }) => void;
     constructor(parent: HTMLElement, startStats: PlayerStartStats, meta: MetaSave, endCb: (result: { time: number; kills: number; shards: number; }) => void) {
@@ -302,6 +303,7 @@ export class Game {
 
     setupInput() {
         window.addEventListener('keydown', e => {
+            this.lastInputDevice = 'keyboard';
             if (e.key === 'w' || e.key === 'ArrowUp') this.input.up = true;
             if (e.key === 's' || e.key === 'ArrowDown') this.input.down = true;
             if (e.key === 'a' || e.key === 'ArrowLeft') this.input.left = true;
@@ -324,6 +326,7 @@ export class Game {
             }
         });
         window.addEventListener('keyup', e => {
+            this.lastInputDevice = 'keyboard';
             if (e.key === 'w' || e.key === 'ArrowUp') this.input.up = false;
             if (e.key === 's' || e.key === 'ArrowDown') this.input.down = false;
             if (e.key === 'a' || e.key === 'ArrowLeft') this.input.left = false;
@@ -343,12 +346,18 @@ export class Game {
                 const dead = 0.22;
                 const h = Math.abs(axH) > dead ? axH : 0;
                 const v = Math.abs(axV) > dead ? axV : 0;
-                this.input.left = h < -dead;
-                this.input.right = h > dead;
-                this.input.up = v < -dead;
-                this.input.down = v > dead;
-                // Buttons: 0=A/Cross confirm, 9=Start, 2/3= X/Y etc.
                 const buttons = gp.buttons.map(b => b.pressed);
+                // Detect active gamepad intent
+                const movementActive = h !== 0 || v !== 0;
+                const buttonActive = buttons[0] || buttons[1] || buttons[2] || buttons[3] || buttons[9] || buttons[14] || buttons[15] || buttons[12] || buttons[13];
+                if (movementActive || buttonActive) this.lastInputDevice = 'gamepad';
+                if (this.lastInputDevice === 'gamepad') {
+                    this.input.left = h < -dead;
+                    this.input.right = h > dead;
+                    this.input.up = v < -dead;
+                    this.input.down = v > dead;
+                }
+                // Buttons: 0=A/Cross confirm, 9=Start, 2/3= X/Y etc.
                 // Start button (9) toggles pause menu (when not showing upgrade modal or game over)
                 if (buttons[9] && !lastButtons[9]) {
                     const pm = document.getElementById('pauseMenu');
@@ -504,11 +513,53 @@ export class Game {
 
     gameOver() {
         this.gs.paused = true;
+        this.gs.runActive = false;
         if (this.upgradeModal) {
+            // hide main menu if still visible to avoid overlap
+            const mainMenu = document.getElementById('mainMenu');
+            if (mainMenu && mainMenu.style.display !== 'none') mainMenu.style.display = 'none';
             this.upgradeModal.style.display = 'flex';
-            this.upgradeModal.innerHTML = `<div class="panel" style="text-align:center"><h2>Game Over</h2><p>You survived ${Math.floor(this.gs.time)}s<br/>Level ${this.gs.level} - Kills ${this.gs.kills}</p><div style='display:flex; gap:16px; justify-content:center; margin-top:18px;'><button id='restartBtn' class='upgrade' style='min-height:0; padding:12px 22px; max-width:200px;'>Restart</button><button id='mainMenuBtn' class='upgrade' style='min-height:0; padding:12px 22px; max-width:200px;'>Main Menu</button></div><div style='margin-top:14px; font-size:12px; opacity:.55;'>Press A / Enter to activate focused button</div></div>`;
-            const btn = document.getElementById('restartBtn'); btn?.addEventListener('click', () => location.reload());
-            const mm = document.getElementById('mainMenuBtn'); mm?.addEventListener('click', () => { (document.getElementById('mainMenu')!).style.display = 'flex'; this.upgradeModal!.style.display = 'none'; });
+            this.upgradeModal.innerHTML = `<div class="panel gameover-panel" style="text-align:center"><h2 style='margin:0 0 28px; font-size:42px; letter-spacing:1px;'>Game Over</h2><p style='margin:0; font-size:26px; line-height:1.4; color:#e4ecf4;'>You survived ${Math.floor(this.gs.time)}s<br/>Level ${this.gs.level} – Kills ${this.gs.kills}</p><div class='goButtons'><button id='restartBtn'>Restart</button><button id='mainMenuBtn'>Main Menu</button></div><div class='gameover-note'>Press A / Enter to activate focused button</div></div>`;
+            const restart = document.getElementById('restartBtn') as HTMLButtonElement | null;
+            const menuBtn = document.getElementById('mainMenuBtn') as HTMLButtonElement | null;
+            restart?.addEventListener('click', () => {
+                const evt = new CustomEvent('voidsurvivor-restart');
+                window.dispatchEvent(evt);
+            });
+            menuBtn?.addEventListener('click', () => { (document.getElementById('mainMenu')!).style.display = 'flex'; this.upgradeModal!.style.display = 'none'; });
+            // Simple keyboard/controller focus handling for the two buttons
+            let goIndex = 0;
+            const goButtons = [restart, menuBtn].filter(Boolean) as HTMLButtonElement[];
+            const applyGoSel = () => goButtons.forEach((b, i) => { if (i === goIndex) b.classList.add('selected'); else b.classList.remove('selected'); });
+            applyGoSel();
+            const goKeyHandler = (e: KeyboardEvent) => {
+                if (!goButtons.length) return;
+                if (['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD', 'ArrowUp', 'KeyW', 'ArrowDown', 'KeyS', 'Tab'].includes(e.code)) { e.preventDefault(); }
+                switch (e.code) {
+                    case 'ArrowLeft': case 'KeyA': case 'ArrowUp': case 'KeyW': goIndex = (goIndex + goButtons.length - 1) % goButtons.length; applyGoSel(); break;
+                    case 'ArrowRight': case 'KeyD': case 'ArrowDown': case 'KeyS': goIndex = (goIndex + 1) % goButtons.length; applyGoSel(); break;
+                    case 'Enter': case 'Space': goButtons[goIndex].click(); break;
+                }
+            };
+            window.addEventListener('keydown', goKeyHandler, { once: false });
+            // Lightweight gamepad polling for game over buttons
+            let lastButtons: boolean[] = [];
+            let lastH = 0;
+            const pollGO = () => {
+                if (this.upgradeModal?.style.display !== 'flex') return; // stop if closed
+                const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+                const gp = pads && pads[0];
+                if (gp) {
+                    const buttons = gp.buttons.map(b => b.pressed);
+                    const axH = gp.axes[0] || 0; const dead = 0.4; const h = Math.abs(axH) > dead ? (axH > 0 ? 1 : -1) : 0;
+                    if ((buttons[14] && !lastButtons[14]) || (h === -1 && lastH !== -1)) { goIndex = (goIndex + goButtons.length - 1) % goButtons.length; applyGoSel(); }
+                    if ((buttons[15] && !lastButtons[15]) || (h === 1 && lastH !== 1)) { goIndex = (goIndex + 1) % goButtons.length; applyGoSel(); }
+                    if (buttons[0] && !lastButtons[0]) { goButtons[goIndex].click(); }
+                    lastButtons = buttons; lastH = h;
+                }
+                requestAnimationFrame(pollGO);
+            };
+            requestAnimationFrame(pollGO);
         }
         const shardsGained = this.gs.runShards || 0;
         // Persist shards to meta

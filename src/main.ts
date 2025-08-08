@@ -47,8 +47,7 @@ function onRunEnd(result: { time: number; kills: number; shards: number; }) {
     meta.stats.runs += 1;
     meta.stats.bestTime = Math.max(meta.stats.bestTime, result.time);
     saveMeta(meta);
-    // reopen menu after slight delay
-    setTimeout(() => { show('mainMenu'); }, 1000);
+    // Do NOT auto-open main menu; Game Over screen handles offering Main Menu button.
 }
 
 function wireMenu() {
@@ -68,6 +67,7 @@ function wireMenu() {
 // Menu navigation (keyboard + controller)
 let menuButtons: HTMLButtonElement[] = [];
 let menuIndex = 0;
+let lastMenuInput: 'keyboard' | 'gamepad' = 'keyboard';
 function collectVisibleMenuButtons() {
     menuButtons = [];
     const menus = ['mainMenu', 'metaMenu', 'instructionsMenu', 'settingsMenu'];
@@ -96,6 +96,7 @@ function activateFocused() { if (menuButtons[menuIndex]) menuButtons[menuIndex].
 
 function setupMenuInput() {
     const keyHandler = (e: KeyboardEvent) => {
+        lastMenuInput = 'keyboard';
         const vertical = ['ArrowUp', 'KeyW', 'KeyS', 'ArrowDown'];
         if (vertical.includes(e.code)) { e.preventDefault(); }
         switch (e.code) {
@@ -122,12 +123,17 @@ function setupMenuInput() {
             const axV = gp.axes[1] || 0;
             const dead = 0.35;
             const vDir = Math.abs(axV) > dead ? (axV > 0 ? 1 : -1) : 0;
-            // D-pad up/down 12/13
-            const up = (buttons[12] && !lastButtons[12]) || (vDir === -1 && lastAxisV !== -1);
-            const down = (buttons[13] && !lastButtons[13]) || (vDir === 1 && lastAxisV !== 1);
-            if (up) moveMenuFocus(-1);
-            if (down) moveMenuFocus(1);
-            if (buttons[0] && !lastButtons[0]) activateFocused(); // A
+            const axisUsed = vDir !== 0;
+            const btnUsed = buttons.some((b, i) => b && [0, 12, 13].includes(i));
+            if (axisUsed || btnUsed) lastMenuInput = 'gamepad';
+            if (lastMenuInput === 'gamepad') {
+                // D-pad up/down 12/13
+                const up = (buttons[12] && !lastButtons[12]) || (vDir === -1 && lastAxisV !== -1);
+                const down = (buttons[13] && !lastButtons[13]) || (vDir === 1 && lastAxisV !== 1);
+                if (up) moveMenuFocus(-1);
+                if (down) moveMenuFocus(1);
+                if (buttons[0] && !lastButtons[0]) activateFocused(); // A
+            }
             lastAxisV = vDir;
             lastButtons = buttons;
         }
@@ -141,6 +147,19 @@ function bootstrap() {
     show('mainMenu');
     collectVisibleMenuButtons();
     setupMenuInput();
+    // Listen for in-game restart requests (Game Over restart button)
+    window.addEventListener('voidsurvivor-restart', () => {
+        const root = document.getElementById('app');
+        if (!root) return;
+        // Clear canvas / children if any prior game exists
+        if (currentGame) {
+            // crude reset by replacing root contents
+            root.innerHTML = '';
+            currentGame = null;
+        }
+        const startStats = buildStartStats(meta);
+        currentGame = new Game(root, startStats, meta, onRunEnd);
+    });
 }
 
 bootstrap();
