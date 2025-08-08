@@ -254,6 +254,15 @@ function bootstrap() {
         const startStats = buildStartStats(meta);
         currentGame = new Game(root, startStats, meta, onRunEnd);
     });
+    // Handle quitting mid-run from pause menu
+    window.addEventListener('voidsurvivor-quit', () => {
+        const root = document.getElementById('app');
+        if (root) root.innerHTML = '';
+        currentGame = null;
+        // Show main menu (ensure others hidden)
+        hide('metaMenu'); hide('instructionsMenu'); hide('settingsMenu');
+        show('mainMenu');
+    });
 }
 
 bootstrap();

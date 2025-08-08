@@ -388,7 +388,21 @@ export class Game {
         }
         if (quit) {
             const cloneQ = quit.cloneNode(true) as HTMLButtonElement; quit.parentNode?.replaceChild(cloneQ, quit);
-            cloneQ.addEventListener('click', () => { pm.style.display = 'none'; (document.getElementById('mainMenu')!).style.display = 'flex'; this.gs.paused = false; }, { once: true });
+            cloneQ.addEventListener('click', () => {
+                // Close pause menu and terminate the current run
+                pm.style.display = 'none';
+                try { this.app.ticker.stop(); } catch { }
+                try {
+                    // Manually remove children then destroy
+                    this.app.stage.removeChildren();
+                    this.app.destroy();
+                } catch { }
+                const root = document.getElementById('app');
+                if (root) root.innerHTML = '';
+                // Notify host to clear currentGame reference & show main menu
+                const evt = new CustomEvent('voidsurvivor-quit');
+                window.dispatchEvent(evt);
+            }, { once: true });
         }
         const buttons = Array.from(pm.querySelectorAll('.pmBtn')) as HTMLButtonElement[];
         let pIndex = 0;
