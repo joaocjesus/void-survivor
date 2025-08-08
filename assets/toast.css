@@ -12,14 +12,17 @@
 }
 
 .toast {
-    background: rgba(30, 36, 44, .92);
+    background: rgba(30, 36, 44, .94);
     color: #e6f1f7;
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    letter-spacing: .3px;
-    box-shadow: 0 4px 18px -2px rgba(0, 0, 0, .5);
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: .4px;
+    box-shadow: 0 6px 26px -4px rgba(0, 0, 0, .6);
     animation: toast-pop .25s ease, toast-fade 6.4s forwards;
+    max-width: 520px;
+    backdrop-filter: blur(4px) saturate(140%);
 }
 
 .toast.success {
