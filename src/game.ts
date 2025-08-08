@@ -173,16 +173,16 @@ export class Game {
                 }
             } else {
                 // Non-power upgrades: comparison view (current vs next), base stats are Level 1 values
-        const currentValueLine = (id: string, inc: number): string => {
+                const currentValueLine = (id: string, inc: number): string => {
                     switch (id) {
-            case 'dmg': return `Damage: ${(base.damage + inc * UPGRADE_VALUES.DAMAGE_PLUS).toFixed(0)}`;
-            case 'aspd': return `Attack Speed: ${(base.attackSpeed * Math.pow(UPGRADE_VALUES.ATTACK_SPEED_MULT, inc)).toFixed(2)}`;
-            case 'speed': return `Move Speed: ${(base.speed * Math.pow(UPGRADE_VALUES.MOVE_SPEED_MULT, inc)).toFixed(0)}`;
-            case 'projspd': return `Projectile Speed: ${(base.projectileSpeed * Math.pow(UPGRADE_VALUES.PROJECTILE_SPEED_MULT, inc)).toFixed(0)}`;
-            case 'hp': return `Max HP: ${(base.maxHp + inc * UPGRADE_VALUES.MAX_HP_PLUS).toFixed(0)}`;
-            case 'pickup': return `Pickup Range: ${(base.pickupRange * Math.pow(UPGRADE_VALUES.PICKUP_RANGE_MULT, inc)).toFixed(0)}`;
-            case 'regen': return `Regeneration: ${(base.regen + inc * UPGRADE_VALUES.REGEN_PLUS).toFixed(1)}`;
-            case 'magicOrbDmg': return `Orb Damage: ${(POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE + inc * POWERS_UPGRADE_VALUES.MAGIC_ORB_DAMAGE_INCREMENT).toFixed(0)}`;
+                        case 'dmg': return `Damage: ${(base.damage + inc * UPGRADE_VALUES.DAMAGE_PLUS).toFixed(0)}`;
+                        case 'aspd': return `Attack Speed: ${(base.attackSpeed * Math.pow(UPGRADE_VALUES.ATTACK_SPEED_MULT, inc)).toFixed(2)}`;
+                        case 'speed': return `Move Speed: ${(base.speed * Math.pow(UPGRADE_VALUES.MOVE_SPEED_MULT, inc)).toFixed(0)}`;
+                        case 'projspd': return `Projectile Speed: ${(base.projectileSpeed * Math.pow(UPGRADE_VALUES.PROJECTILE_SPEED_MULT, inc)).toFixed(0)}`;
+                        case 'hp': return `Max HP: ${(base.maxHp + inc * UPGRADE_VALUES.MAX_HP_PLUS).toFixed(0)}`;
+                        case 'pickup': return `Pickup Range: ${(base.pickupRange * Math.pow(UPGRADE_VALUES.PICKUP_RANGE_MULT, inc)).toFixed(0)}`;
+                        case 'regen': return `Regeneration: ${(base.regen + inc * UPGRADE_VALUES.REGEN_PLUS).toFixed(1)}`;
+                        case 'magicOrbDmg': return `Orb Damage: ${(POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE + inc * POWERS_UPGRADE_VALUES.MAGIC_ORB_DAMAGE_INCREMENT).toFixed(0)}`;
                         default: return '';
                     }
                 };
