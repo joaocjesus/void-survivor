@@ -1,0 +1,29 @@
+#upgradeModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:10}
+#upgradeModal .panel{background:#1c1f24;padding:28px 34px 34px;border-radius:22px;width:min(980px,94%);box-shadow:0 14px 38px -6px rgba(0,0,0,.6)}
+#upgradeModal h2{margin:0 0 20px;font-size:20px;letter-spacing:.5px;text-align:center}
+.upgrades{display:flex;flex-direction:row;gap:22px;margin-top:8px;align-items:stretch;justify-content:center;flex-wrap:nowrap}
+.upgrade{background:linear-gradient(145deg,#262d33 0%,#1d2327 60%);border:1px solid #30363d;padding:16px 20px 22px;border-radius:20px;cursor:pointer;transition:.18s background,.18s border-color,.25s transform,.25s box-shadow;flex:1 1 0;min-width:240px;max-width:300px;display:flex;flex-direction:column;justify-content:flex-start;position:relative;box-shadow:0 4px 14px -4px rgba(0,0,0,.55),0 2px 0 rgba(255,255,255,.03) inset;overflow:hidden;min-height:400px}
+.upgrade:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 30%,rgba(255,255,255,.06),transparent 70%);opacity:0;transition:.35s opacity;pointer-events:none}
+.upgrade:hover:before{opacity:1}
+.upgrade:hover{background:linear-gradient(150deg,#2b343b,#222a30 55%);border-color:#3d9bff;transform:translateY(-4px) scale(1.015);box-shadow:0 10px 28px -6px rgba(0,0,0,.7),0 0 0 1px rgba(61,155,255,.35),0 0 22px -2px rgba(61,155,255,.4)}
+.upgrade.power{border-color:#494d55}
+.upgrade.power:hover{border-color:#d4b35a;box-shadow:0 10px 28px -6px rgba(0,0,0,.7),0 0 0 1px rgba(255,210,120,.35),0 0 26px -2px rgba(255,210,120,.35)}
+.upgrade:hover{background:#2d353d;border-color:#3d9bff;transform:translateY(-2px)}
+.upgrade h3{margin:0 0 14px;font-size:20px;color:#ffe08a;text-align:center;letter-spacing:.8px;font-weight:600;text-shadow:0 2px 4px rgba(0,0,0,.6)}
+.upgrade .body{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center}
+.upgrade p,.upgrade .bodyText{margin:0;font-size:15px;line-height:1.48;color:#cfd9e3;text-align:center}
+.upgrade .body div{color:#cfd9e3}
+.upgrade.selected{border-color:#5aa9ff;box-shadow:0 0 0 1px rgba(90,169,255,.35),0 6px 18px -6px rgba(0,120,255,.45)}
+.upgrade.selected:hover{border-color:#7bc0ff}
+.power-compare{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.power-compare .col{padding:0;display:flex;flex-direction:column;gap:4px}
+.power-compare .lvl{font-weight:600;font-size:14px;letter-spacing:.7px;text-align:center}
+.power-compare .col.current .lvl,.power-compare .col.current .stat{color:#9ea6ad}
+.power-compare .col.next .lvl,.power-compare .col.next .stat{color:#fff}
+.power-compare .col.next .lvl{font-size:15px;letter-spacing:.8px}
+.power-compare .col.next .stat{font-weight:600}
+.power-compare .stat{font-size:15px;text-align:center}
+.power-compare .arrowDown{display:flex;justify-content:center}
+.power-compare .arrowIcon{width:36px;height:36px;border-radius:50%;background:#262d33;display:flex;align-items:center;justify-content:center;color:#d2dde7;font-size:18px;box-shadow:0 3px 8px -3px rgba(0,0,0,.6)}
+.upgrade.power:not(:hover) .power-compare .col.next{opacity:.85}
+.footerHint{margin-top:14px;font-size:12px;opacity:.6;text-align:right}

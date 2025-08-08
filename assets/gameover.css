@@ -1,0 +1,6 @@
+.gameover-panel{width:min(760px,90%);padding:46px 60px 54px!important}
+.goButtons{display:flex;gap:34px;justify-content:center;margin-top:34px}
+.goButtons button{flex:1 1 0;background:#262d33;border:1px solid #3a434b;border-radius:40px;padding:18px 10px;font-size:20px;font-weight:500;letter-spacing:.5px;color:#dfe7ef;cursor:pointer;transition:.18s background,.18s border-color,.18s box-shadow,.18s color}
+.goButtons button:hover{background:#2f3840;border-color:#4ca3d8}
+.goButtons button.selected,.goButtons button:focus-visible{outline:none;background:#303e46;border-color:#5aa9ff;box-shadow:0 0 0 2px rgba(90,169,255,.35)}
+.gameover-note{margin-top:34px;font-size:14px;opacity:.55}

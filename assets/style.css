@@ -3,142 +3,13 @@ body {
     margin: 0;
     padding: 0;
     background: #0d0d0f;
-    color: #eee;
-    font-family: system-ui, Arial, sans-serif;
-    overflow: hidden
-}
-
-#app {
-    width: 100vw;
-    height: 100vh;
-    overflow: hidden
-}
-
-.hud {
-    position: fixed;
-    top: 8px;
-    left: 8px;
-    font-size: 14px;
-    background: rgba(0, 0, 0, .45);
-    backdrop-filter: blur(4px);
-    padding: 8px 12px;
-    border-radius: 8px;
-    line-height: 1.4;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, .4)
-}
-
-.bar {
-    height: 8px;
-    background: #222;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: 4px;
-    width: 240px;
-    position: relative
-}
-
-.bar>span {
-    display: block;
-    height: 100%;
-    background: linear-gradient(90deg, #46c35f, #7ddc92);
-    width: 0%;
-    transition: width .15s linear
-}
-
-.bar.hp>span {
-    background: linear-gradient(90deg, #d32f2f, #ef5350)
-}
-
-#upgradeModal {
-    position: fixed;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, .6);
-    z-index: 10
-}
-
-#upgradeModal .panel {
-    background: #1c1f24;
-    padding: 28px 34px 34px;
-    border-radius: 22px;
-    width: min(980px, 94%);
-    box-shadow: 0 14px 38px -6px rgba(0, 0, 0, .6)
-}
-
-#upgradeModal h2 {
-    margin: 0 0 20px;
-    font-size: 20px;
-    letter-spacing: .5px;
-    text-align: center
-}
-
-.upgrades {
-    display: flex;
-    flex-direction: row;
-    gap: 22px;
-    margin-top: 8px;
-    align-items: stretch;
-    justify-content: center;
-    flex-wrap: nowrap
-}
-
-.upgrade {
-    background: linear-gradient(145deg, #262d33 0%, #1d2327 60%);
-    border: 1px solid #30363d;
-    padding: 16px 20px 22px;
-    border-radius: 20px;
-    cursor: pointer;
-    transition: .18s background, .18s border-color, .25s transform, .25s box-shadow;
-    flex: 1 1 0;
-    min-width: 240px;
-    max-width: 300px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    position: relative;
-    box-shadow: 0 4px 14px -4px rgba(0, 0, 0, .55), 0 2px 0 rgba(255, 255, 255, .03) inset;
-    overflow: hidden;
-    min-height: 400px
-}
-
-.upgrade:before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, .06), transparent 70%);
-    opacity: 0;
-    transition: .35s opacity;
-    pointer-events: none
-}
-
-.upgrade:hover:before {
-    opacity: 1
-}
-
-.upgrade:hover {
-    background: linear-gradient(150deg, #2b343b, #222a30 55%);
-    border-color: #3d9bff;
-    transform: translateY(-4px) scale(1.015);
-    box-shadow: 0 10px 28px -6px rgba(0, 0, 0, .7), 0 0 0 1px rgba(61, 155, 255, .35), 0 0 22px -2px rgba(61, 155, 255, .4)
-}
-
-.upgrade.power {
-    border-color: #494d55
-}
-
-.upgrade.power:hover {
-    border-color: #d4b35a;
-    box-shadow: 0 10px 28px -6px rgba(0, 0, 0, .7), 0 0 0 1px rgba(255, 210, 120, .35), 0 0 26px -2px rgba(255, 210, 120, .35)
-}
-
-.upgrade:hover {
-    background: #2d353d;
-    border-color: #3d9bff;
-    transform: translateY(-2px)
-}
-
+    /* Aggregated stylesheet importing modular partials in order */
+    @import url('./base.css');
+    @import url('./hud.css');
+    @import url('./upgrade-modal.css');
+    @import url('./menu.css');
+    @import url('./gameover.css');
+    @import url('./meta.css');
 .upgrade h3 {
     margin: 0 0 14px;
     font-size: 20px;
@@ -252,28 +123,13 @@ body {
     text-align: right
 }
 
-.menu {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(circle at 50% 40%, rgba(40, 60, 80, .15), rgba(0, 0, 0, .85));
-    z-index: 20
-}
-
-.menu-panel {
-    background: #181c22;
-    padding: 32px 40px 40px;
-    border-radius: 18px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, .55);
-    text-align: center
-}
-
-.menu-panel h1 {
-    margin: 0 0 24px;
-    font-size: 42px;
-    letter-spacing: 2px;
+/* Aggregated stylesheet importing modular partials (order matters for overrides) */
+@import './base.css';
+@import './hud.css';
+@import './upgrade-modal.css';
+@import './menu.css';
+@import './gameover.css';
+@import './meta.css';
     background: linear-gradient(90deg, #4cc3ff, #b3fffa);
     -webkit-background-clip: text;
     background-clip: text;
