@@ -34,8 +34,8 @@ export class Game {
         this.app = new PIXI.Application();
         await this.app.init({ resizeTo: parent, background: '#121416', antialias: true });
         parent.appendChild(this.app.canvas);
-    // Attach static background
-    createBackground(this.app);
+        // Attach static background
+        createBackground(this.app);
 
         this.gs = {
             time: 0,
@@ -84,7 +84,7 @@ export class Game {
         this.app.stage.addChild(playerG);
         this.sprites.set(player.id, playerG);
 
-    this.setupInput();
+        this.setupInput();
         this.setupUpgradeShortcuts();
         this.app.ticker.add(this.update);
     }
