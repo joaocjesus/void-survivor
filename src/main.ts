@@ -1,6 +1,7 @@
 import { Game } from './game';
 import { META_UPGRADES, buildStartStats, loadMeta, purchaseMeta, saveMeta, resetMeta } from './meta';
 import { updateRefundButton, handleRefundClick } from './ui/metaRefund';
+import { buildMetaStats } from './ui/metaStats';
 import { confirmAction } from './ui/confirm';
 
 let currentGame: Game | null = null;
@@ -86,10 +87,16 @@ function onRunEnd(result: { time: number; kills: number; shards: number; }) {
 }
 
 function wireMenu() {
-    const goMain = () => { show('mainMenu'); hide('metaMenu'); hide('instructionsMenu'); hide('settingsMenu'); };
+    const goMain = () => { show('mainMenu'); hide('metaMenu'); hide('instructionsMenu'); hide('settingsMenu'); hide('statsMenu'); };
     document.getElementById('btnStart')?.addEventListener('click', startRun);
     document.getElementById('btnMeta')?.addEventListener('click', () => { renderMeta(); hide('mainMenu'); show('metaMenu'); });
+    document.getElementById('btnStats')?.addEventListener('click', () => {
+        updateStatsPanel();
+        hide('mainMenu');
+        show('statsMenu');
+    });
     document.getElementById('btnBackMeta')?.addEventListener('click', () => { hide('metaMenu'); show('mainMenu'); });
+    document.getElementById('btnBackStats')?.addEventListener('click', goMain);
     document.getElementById('btnInstructions')?.addEventListener('click', () => { hide('mainMenu'); show('instructionsMenu'); });
     document.getElementById('btnBackInstructions')?.addEventListener('click', goMain);
     document.getElementById('btnSettings')?.addEventListener('click', () => { hide('mainMenu'); show('settingsMenu'); });
@@ -152,7 +159,7 @@ function ensureMetaVisible() {
 }
 function collectVisibleMenuButtons() {
     menuButtons = [];
-    const menus = ['mainMenu', 'metaMenu', 'instructionsMenu', 'settingsMenu'];
+    const menus = ['mainMenu', 'metaMenu', 'instructionsMenu', 'settingsMenu', 'statsMenu'];
     for (const id of menus) {
         const el = document.getElementById(id);
         if (el && el.style.display !== 'none') {
@@ -292,6 +299,12 @@ function bootstrap() {
         show('mainMenu');
         const hud = document.querySelector('.hud') as HTMLElement | null; if (hud) hud.style.display = 'none';
     });
+}
+
+function updateStatsPanel() {
+    const el = document.getElementById('metaStatsContent');
+    if (!el) return;
+    el.textContent = buildMetaStats(meta).join('\n');
 }
 
 bootstrap();
