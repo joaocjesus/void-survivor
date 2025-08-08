@@ -270,33 +270,57 @@ function wireDevOptions() {
     debugContainer.style.display = 'block';
     console.info('[dev] Developer options enabled');
     // Attach snapshot handlers lazily
+    // Toast helper (scoped here for dev tools use)
+    const pushToast = (msg: string, kind: 'info' | 'success' = 'info') => {
+        const root = document.getElementById('toastRoot');
+        if (!root) return;
+        const el = document.createElement('div');
+        el.className = `toast ${kind}`;
+        el.textContent = msg;
+        root.appendChild(el);
+        setTimeout(() => el.remove(), 6600);
+    };
     btnExport.addEventListener('click', async () => {
-        const { buildSnapshot, downloadSnapshot } = await import('./save');
-        let snap = currentGame ? buildSnapshot(currentGame) : { version: 1, timestamp: Date.now(), meta };
-        if (snap) downloadSnapshot(snap as any);
+        try {
+            const { buildSnapshot, downloadSnapshot } = await import('./save');
+            let snap = currentGame ? buildSnapshot(currentGame) : { version: 1, timestamp: Date.now(), meta };
+            if (snap) {
+                downloadSnapshot(snap as any);
+                pushToast('Snapshot exported', 'success');
+            }
+        } catch (e) {
+            console.warn('Export failed', e);
+            pushToast('Export failed', 'info');
+        }
     });
     btnImport.addEventListener('click', async () => {
-        const { promptLoadSnapshot, applySnapshot } = await import('./save');
-        promptLoadSnapshot(snap => {
-            if (currentGame) {
-                applySnapshot(currentGame!, snap as any);
-            } else {
-                // Merge into global meta when no active run
-                meta.shards = Math.max(meta.shards, snap.meta.shards);
-                meta.purchased = { ...meta.purchased, ...snap.meta.purchased };
-                meta.stats.totalKills = Math.max(meta.stats.totalKills, snap.meta.stats.totalKills);
-                meta.stats.totalTime = Math.max(meta.stats.totalTime, snap.meta.stats.totalTime);
-                meta.stats.runs = Math.max(meta.stats.runs, snap.meta.stats.runs);
-                meta.stats.bestTime = Math.max(meta.stats.bestTime, snap.meta.stats.bestTime);
-                saveMeta(meta);
-                const shardsEl = document.getElementById('metaShards');
-                if (shardsEl) shardsEl.textContent = `Shards: ${meta.shards}`;
-                // If meta menu open, rerender to reflect new levels
-                const metaVisible = document.getElementById('metaMenu')?.style.display !== 'none';
-                if (metaVisible) renderMeta();
-                console.info('[dev] Meta snapshot imported without active run');
-            }
-        });
+        try {
+            const { promptLoadSnapshot, applySnapshot } = await import('./save');
+            promptLoadSnapshot(snap => {
+                if (currentGame) {
+                    applySnapshot(currentGame!, snap as any);
+                } else {
+                    // Merge into global meta when no active run
+                    meta.shards = Math.max(meta.shards, snap.meta.shards);
+                    meta.purchased = { ...meta.purchased, ...snap.meta.purchased };
+                    meta.stats.totalKills = Math.max(meta.stats.totalKills, snap.meta.stats.totalKills);
+                    meta.stats.totalTime = Math.max(meta.stats.totalTime, snap.meta.stats.totalTime);
+                    meta.stats.runs = Math.max(meta.stats.runs, snap.meta.stats.runs);
+                    meta.stats.bestTime = Math.max(meta.stats.bestTime, snap.meta.stats.bestTime);
+                    saveMeta(meta);
+                    const shardsEl = document.getElementById('metaShards');
+                    if (shardsEl) shardsEl.textContent = `Shards: ${meta.shards}`;
+                    // If meta menu open, rerender to reflect new levels
+                    const metaVisible = document.getElementById('metaMenu')?.style.display !== 'none';
+                    if (metaVisible) renderMeta();
+                    console.info('[dev] Meta snapshot imported without active run');
+                }
+                pushToast('Snapshot imported', 'success');
+            });
+        } catch (e) {
+            console.warn('Import failed', e);
+            pushToast('Import failed', 'info');
+        }
     });
     console.info('[dev] Snapshot import/export enabled via VITE_DEV_OPTIONS');
 }
