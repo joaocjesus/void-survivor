@@ -8,7 +8,8 @@ import { clamp, distSq } from './math';
 import { createBackground } from './game/background';
 import { updateHud, updateStatsOverlay } from './game/hud';
 import { createInputState, setupKeyboard, setupGamepad } from './game/input';
-import { XP_CURVE_MULT, XP_CURVE_FLAT, SPAWN_INTERVAL_START, SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_DECAY, FIRE_INTERVAL_BASE, POWERS_VALUES, UPGRADE_VALUES } from './constants/balance';
+import { FIRE_INTERVAL_BASE, POWERS_VALUES, UPGRADE_VALUES } from './constants/balance';
+import { nextXpNeeded, spawnIntervalAt, auraRadiusAt, auraDpsAt } from './balanceUtils';
 
 
 export class Game {
@@ -346,7 +347,7 @@ export class Game {
     levelUp() {
         this.gs.level++;
         this.gs.xp = 0;
-        this.gs.xpNeeded = Math.round(this.gs.xpNeeded * XP_CURVE_MULT + XP_CURVE_FLAT); // curve from constants
+        this.gs.xpNeeded = nextXpNeeded(this.gs.xpNeeded); // centralized XP curve
         this.showUpgradeChoices();
         playSound('level');
     }
@@ -453,7 +454,7 @@ export class Game {
 
         // spawn mobs
         this.gs.spawnTimer -= dt;
-        const spawnInterval = clamp(SPAWN_INTERVAL_START - this.gs.time * SPAWN_INTERVAL_DECAY, SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START);
+        const spawnInterval = spawnIntervalAt(this.gs.time); // centralized spawn pacing
         if (this.gs.spawnTimer <= 0) {
             this.spawnMob();
             this.gs.spawnTimer = spawnInterval;
@@ -487,9 +488,8 @@ export class Game {
         // Aura damage application
         const auraLevel = (player as any).auraLevel || 0;
         if (auraLevel > 0) {
-            const baseRadius = POWERS_VALUES.AURA_BASE_RADIUS;
-            const radius = baseRadius * (1 + 0.2 * (auraLevel - 1));
-            const dps = POWERS_VALUES.AURA_DPS_PER_LEVEL * auraLevel; // from constants
+            const radius = auraRadiusAt(auraLevel);
+            const dps = auraDpsAt(auraLevel); // centralized aura DPS calc
             const auraG: PIXI.Graphics = (player as any).auraG;
             if (auraG) {
                 auraG.clear();
