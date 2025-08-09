@@ -16,6 +16,7 @@ Arena survival roguelite prototype built with TypeScript, Vite and PixiJS.
 - Gamepad: movement, upgrade selection, menu navigation, pause toggle
 - Particle effects, hit flashes and simple procedural audio
 - Deterministic seeded RNG for consistent balancing tests
+ - Sprite sheet player character with frame mirroring (right-facing frames reused for left via scale.x flip)
 
 ## Getting Started
 
@@ -37,6 +38,10 @@ VITE_DEV_OPTIONS=true npm run dev
 ```
 
 This reveals a hidden Debug section with buttons to Export (download a `void-survivor-meta-<timestamp>.json`) and Import a snapshot. Importing without an active run merges meta progression (shards, purchased upgrades, aggregate stats). Snapshot JSON files matching `*-snapshot.json` are ignored by git.
+
+### Sprite / Animation Notes
+
+The player uses a grid-based sprite sheet. Only right-facing walk cycle frames are stored; left direction is rendered by mirroring (`scale.x = -1`) without resetting the current frame to avoid flicker. Animation only plays when actual displacement occurs (see `didMove` in `src/movement.ts`), using `MOVE_EPSILON` to suppress micro jitter. Adjust movement animation speed via `MOVE_ANIM_SPEED`.
 
 ## Next Ideas
 - More enemy variety & behaviors

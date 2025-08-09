@@ -10,6 +10,8 @@ import { updateHud, updateStatsOverlay } from './game/hud';
 import { createInputState, setupKeyboard, setupGamepad } from './game/input';
 import { FIRE_INTERVAL_BASE, POWERS_VALUES, UPGRADE_VALUES, POWERS_UPGRADE_VALUES } from './constants/balance';
 import { nextXpNeeded, spawnIntervalAt, auraRadiusAt, auraDpsAt } from './balanceUtils';
+import { createPlayerSpriteFromGrid, PlayerSprite } from './sprites/grid';
+import { didMove, MOVE_ANIM_SPEED } from './movement';
 
 
 export class Game {
@@ -25,6 +27,10 @@ export class Game {
     // Controller selection index for upgrade cards
     private upgradeSelIndex: number = 0;
     private lastInputDevice: 'keyboard' | 'gamepad' = 'keyboard';
+    private playerSprite?: PlayerSprite;
+    private lastDir: 'left' | 'right' | 'up' | 'down' = 'right';
+    // Simplified animation state
+    private wasMoving: boolean = false;
 
     private endCb: (result: { time: number; kills: number; shards: number; }) => void;
     constructor(parent: HTMLElement, startStats: PlayerStartStats, meta: MetaSave, endCb: (result: { time: number; kills: number; shards: number; }) => void) {
@@ -71,10 +77,13 @@ export class Game {
         this.gs.entities.set(player.id, player);
         // Player base graphics container
         const playerG = new PIXI.Container();
+        // Fallback vector visuals (used if sprite fails to load)
+        const fallback = new PIXI.Container();
         const glow = new PIXI.Graphics(); glow.circle(0, 0, player.radius + 6).fill({ color: 0x46c96d, alpha: 0.08 });
         const core = new PIXI.Graphics(); core.circle(0, 0, player.radius - 2).fill({ color: 0x4caf50 });
         const ring = new PIXI.Graphics(); ring.circle(0, 0, player.radius).stroke({ color: 0x9dffc4, width: 2 });
-        playerG.addChild(glow); playerG.addChild(core); playerG.addChild(ring);
+        fallback.addChild(glow); fallback.addChild(core); fallback.addChild(ring);
+        playerG.addChild(fallback);
         // aura visual (updated in update loop based on level)
         const aura = new PIXI.Graphics();
         aura.alpha = 0.18;
@@ -85,6 +94,25 @@ export class Game {
         playerG.x = player.x; playerG.y = player.y;
         this.app.stage.addChild(playerG);
         this.sprites.set(player.id, playerG);
+
+        // Try to load an optional sprite sheet for the player.
+        // Place an image at /assets/player-sprites.png (grid). Adjust cols/rows below to match your sheet.
+        try {
+            const tex = await PIXI.Assets.load('/assets/player-sprites.png');
+            // New sheet: 4 columns x 6 rows, only right-facing; 21 frames total (last row partial)
+            const sprite = createPlayerSpriteFromGrid(tex, { cols: 4, rows: 6, cycleRows: [0, 1, 2, 3, 4, 5], frameCount: 21 });
+            // Use sprite's native pixel size (no downscale to hit circle)
+            // If you want to tweak: sprite.view.scale.set(0.75) etc.
+            sprite.view.scale.set(0.15);
+            // Insert under aura/orbit but above glow
+            playerG.addChildAt(sprite.view, 1);
+            // Hide fallback core if sprite loads
+            fallback.visible = false;
+            this.playerSprite = sprite;
+        } catch (err) {
+            // Missing asset is fine; keep fallback visuals
+            // console.warn('Player sprite not found, using vector fallback.', err);
+        }
 
         this.setupInput();
         this.setupUpgradeShortcuts();
@@ -521,21 +549,45 @@ export class Game {
         }
 
         // movement (instant directional, for snappy feel & clear speed)
+        const prevX = player.x;
+        const prevY = player.y;
         let mx = 0, my = 0;
-        if (this.input.up) my -= 1;
-        if (this.input.down) my += 1;
-        if (this.input.left) mx -= 1;
-        if (this.input.right) mx += 1;
+        if (this.input.up && this.input.down) {
+            my = 0;
+        }
+        else {
+            if (this.input.up) my -= 1;
+            if (this.input.down) my += 1;
+        }
+        if (this.input.left && this.input.right) {
+            mx = 0;
+        } else {
+            if (this.input.left) mx -= 1;
+            if (this.input.right) mx += 1;
+        }
         if (mx !== 0 || my !== 0) {
-            const len = Math.hypot(mx, my) || 1; mx /= len; my /= len;
+            const len = Math.hypot(mx, my) || 1;
+            mx /= len;
+            my /= len;
         }
         const moveSpeed = (player.speed || 120);
         player.x += mx * moveSpeed * dt;
         player.y += my * moveSpeed * dt;
         // Boundaries (viewport clamp)
-        const w = this.app.renderer.width; const h = this.app.renderer.height;
+        const w = this.app.renderer.width;
+        const h = this.app.renderer.height;
         player.x = Math.max(player.radius, Math.min(w - player.radius, player.x));
         player.y = Math.max(player.radius, Math.min(h - player.radius, player.y));
+
+        // Update facing direction immediately from input (responsive orientation)
+        if (this.playerSprite) {
+            if (mx !== 0 || my !== 0) {
+                // Prefer horizontal when present, else vertical
+                if (mx !== 0) this.lastDir = mx < 0 ? 'left' : 'right';
+                else if (my !== 0) this.lastDir = my < 0 ? 'up' : 'down';
+                this.playerSprite.setDir(this.lastDir);
+            }
+        }
 
         // Aura damage application
         const auraLevel = (player as any).auraLevel || 0;
@@ -728,6 +780,16 @@ export class Game {
                 const t = this.gs.time * 6 + e.id;
                 (sprite as any).rotation = t;
             }
+        }
+
+        // Animation strictly based on actual displacement (ignores cancelling inputs like left+right)
+        if (this.playerSprite) {
+            const moved = didMove(prevX, prevY, player.x, player.y);
+            if (moved !== this.wasMoving) {
+                this.playerSprite.setMoving(moved);
+                this.wasMoving = moved;
+            }
+            this.playerSprite.setAnimSpeed(moved ? MOVE_ANIM_SPEED : 0);
         }
 
         this.updateHud();
