@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { UPGRADES, applyUpgradeChoice, pickUpgradeOffers } from '../upgrades';
-import { UPGRADE_RARITY_VALUES, effRarityWeight } from '../constants/rarity';
+import { CARDS, effRarityWeight } from '../constants/cards';
 import type { GameState, Entity } from '../types';
 
 function makeState(rng: () => number): GameState {
@@ -73,7 +73,7 @@ describe('applyUpgradeChoice', () => {
         const gs = makeState(() => 0.1);
         const p = gs.entities.get(0)!;
         const before = p.damage!;
-        const legendaryDmg = UPGRADE_RARITY_VALUES.damage.values.legendary!;
+        const legendaryDmg = CARDS.damage.values.legendary!;
         applyUpgradeChoice(gs, UPGRADES.find(u => u.id === 'damage')!, 'legendary');
         expect(p.damage).toBe(before + legendaryDmg);
         expect(gs.upgradeCounts['damage']).toBe(1);

@@ -1,5 +1,5 @@
 import type * as PIXI from 'pixi.js';
-import type { Rarity } from './constants/rarity';
+import type { Rarity } from './constants/cards';
 
 export interface Vector2 { x: number; y: number; }
 export type EntityKind = 'player' | 'mob' | 'projectile' | 'xp' | 'shard' | 'particle';

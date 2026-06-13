@@ -1,52 +1,45 @@
 import { UpgradeDef, OfferedUpgrade, GameState, Entity, PlayerStartStats } from './types';
 import { POWERS_VALUES } from './constants/balance';
-import { effRarityWeight, RARITIES, rarityValue, type Rarity } from './constants/rarity';
+import { CARDS, cardInfo, effRarityWeight, RARITIES, rarityValue, type CardId, type Rarity } from './constants/cards';
 
-// Mutator receives the player, this pick's rarity magnitude `v` (from UPGRADE_RARITY_VALUES),
-// and the run's base stats. Builder wires up the player lookup + value lookup so each card
-// only declares its actual effect.
+// Mutator receives the player, this pick's rarity magnitude `v` (from the card's
+// values in constants/cards.ts), and the run's base stats. The builder pulls the
+// card's identity (name/description/isPower) from CARDS, so each entry below only
+// declares its id, its effect, and an optional `requires` gate.
 type Mut = (p: Entity, v: number, base: PlayerStartStats) => void;
-const card = (id: string, name: string, description: string, mut: Mut, extra: Partial<UpgradeDef> = {}): UpgradeDef => ({
-    id, name, description, ...extra,
-    apply: (gs, r) => mut(gs.entities.get(gs.playerId)!, rarityValue(id, r), gs.startStats),
-});
+const card = (id: CardId, mut: Mut, requires?: UpgradeDef['requires']): UpgradeDef => {
+    const info = cardInfo(id);
+    return {
+        id, name: info.name, description: info.description, isPower: info.isPower, requires,
+        apply: (gs, r) => mut(gs.entities.get(gs.playerId)!, rarityValue(id, r), gs.startStats),
+    };
+};
 
 const ownsOrbs = (gs: GameState) => (gs.entities.get(gs.playerId)?.magicOrbCount ?? 0) > 0;
 
-// In-run upgrade definitions. Per-pick magnitudes come from UPGRADE_RARITY_VALUES
-// (constants/rarity.ts). Percent stats add `v`% of the base value (linear stacking).
+// In-run upgrade behavior. Identity + drop config + per-rarity values live in
+// constants/cards.ts; this just maps each card id to what a pick does.
 export const UPGRADES: UpgradeDef[] = [
-    card('damage', 'Damage', 'Increase projectile damage',
-        (p, v) => { p.damage = (p.damage || 0) + v; }),
-    card('attackSpeed', 'Attack Speed', 'Fire faster',
-        (p, v, b) => { p.attackSpeed = (p.attackSpeed || 1) + b.attackSpeed * v / 100; }),
-    card('moveSpeed', 'Move Speed', 'Move faster',
-        (p, v, b) => { p.speed = (p.speed || b.speed) + b.speed * v / 100; }),
-    card('projSpeed', 'Projectile Speed', 'Projectiles travel faster',
-        (p, v, b) => { p.projectileSpeed = (p.projectileSpeed || b.projectileSpeed) + b.projectileSpeed * v / 100; }),
-    card('projLifeSpan', 'Projectile Lifespan', 'Projectiles last longer (reach farther)',
-        (p, v) => { p.projLifeSpanMult = (p.projLifeSpanMult ?? 1) + v / 100; }),
-    card('hp', 'Max Health', 'Increase max HP',
-        (p, v) => { p.maxHp = (p.maxHp || 100) + v; p.hp = (p.hp || 0) + v; }),
-    card('pickupRange', 'Magnet', 'Increase pickup range',
-        (p, v, b) => { p.pickupRange = (p.pickupRange || b.pickupRange) + b.pickupRange * v / 100; }),
-    card('regen', 'Regeneration', 'Regenerate HP over time',
-        (p, v) => { p.regen = (p.regen || 0) + v; }),
-    card('multiShot', 'Multishot', 'Fire additional projectiles',
-        (p, v) => { p.multishot = (p.multishot || 0) + v; }),
-    card('auraRadius', 'Magic Aura', 'Unlock / grow a damaging aura',
-        (p, v) => { p.auraLevel = (p.auraLevel || 0) + 1; p.auraRadiusPct = (p.auraRadiusPct ?? 100) + v; },
-        { isPower: true }),
-    card('magicOrbs', 'Magic Orbs', 'Unlock / add orbiting orbs',
-        (p, v) => { p.magicOrbCount = (p.magicOrbCount ?? 0) + v; },
-        { isPower: true }),
-    card('magicOrbDamage', 'Magic Orb Damage', 'Increase orb damage',
-        (p, v) => { p.magicOrbDamage = (p.magicOrbDamage ?? POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE) + v; },
-        { isPower: true, requires: ownsOrbs }),
-    card('magicOrbSpeed', 'Orb Speed', 'Orbs rotate faster',
-        (p, v) => { p.orbSpeedMult = (p.orbSpeedMult ?? 1) + v / 100; },
-        { isPower: true, requires: ownsOrbs }),
+    card('damage', (p, v) => { p.damage = (p.damage || 0) + v; }),
+    card('attackSpeed', (p, v, b) => { p.attackSpeed = (p.attackSpeed || 1) + b.attackSpeed * v / 100; }),
+    card('moveSpeed', (p, v, b) => { p.speed = (p.speed || b.speed) + b.speed * v / 100; }),
+    card('projSpeed', (p, v, b) => { p.projectileSpeed = (p.projectileSpeed || b.projectileSpeed) + b.projectileSpeed * v / 100; }),
+    card('projLifeSpan', (p, v) => { p.projLifeSpanMult = (p.projLifeSpanMult ?? 1) + v / 100; }),
+    card('hp', (p, v) => { p.maxHp = (p.maxHp || 100) + v; p.hp = (p.hp || 0) + v; }),
+    card('pickupRange', (p, v, b) => { p.pickupRange = (p.pickupRange || b.pickupRange) + b.pickupRange * v / 100; }),
+    card('regen', (p, v) => { p.regen = (p.regen || 0) + v; }),
+    card('multiShot', (p, v) => { p.multishot = (p.multishot || 0) + v; }),
+    card('auraRadius', (p, v) => { p.auraLevel = (p.auraLevel || 0) + 1; p.auraRadiusPct = (p.auraRadiusPct ?? 100) + v; }),
+    card('magicOrbs', (p, v) => { p.magicOrbCount = (p.magicOrbCount ?? 0) + v; }),
+    card('magicOrbDamage', (p, v) => { p.magicOrbDamage = (p.magicOrbDamage ?? POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE) + v; }, ownsOrbs),
+    card('magicOrbSpeed', (p, v) => { p.orbSpeedMult = (p.orbSpeedMult ?? 1) + v / 100; }, ownsOrbs),
 ];
+
+// Compile-time guard: every card defined in CARDS has a behavior entry above.
+const _definedIds = new Set(UPGRADES.map(u => u.id));
+for (const id of Object.keys(CARDS) as CardId[]) {
+    if (!_definedIds.has(id)) throw new Error(`CARDS.${id} has no behavior in UPGRADES`);
+}
 
 export function applyUpgradeChoice(gs: GameState, upgrade: UpgradeDef, rarity: Rarity) {
     upgrade.apply(gs, rarity);
@@ -62,7 +55,7 @@ export function pickUpgradeOffers(gs: GameState, count: number): OfferedUpgrade[
     const combos: Combo[] = [];
     for (const def of pool) {
         for (const r of RARITIES) {
-            const w = effRarityWeight(def.id, r);
+            const w = effRarityWeight(def.id as CardId, r);
             if (w > 0) combos.push({ def, rarity: r, w });
         }
     }

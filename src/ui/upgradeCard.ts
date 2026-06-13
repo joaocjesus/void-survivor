@@ -2,7 +2,7 @@ import { FIRE_INTERVAL_BASE, POWERS_VALUES, PROJECTILE_BASE_LIFE } from '../cons
 import { DARK_TEXTURE_PRESETS } from '../backgroundPresets';
 import { darkTextureDataURL } from '../game/background';
 import { Entity, PlayerStartStats, UpgradeDef } from '../types';
-import { rarityValue, type Rarity } from '../constants/rarity';
+import { rarityValue, type CardId, type Rarity } from '../constants/cards';
 
 // Powers that start locked: their first pick is the "New Unlock" card.
 const UNLOCKABLE_IDS = new Set(['auraRadius', 'magicOrbs']);
@@ -96,7 +96,7 @@ function statTransition(
     rarity: Rarity,
     row: (label: string, current: string, next: string, inc?: string) => string
 ): string {
-    const v = rarityValue(id, rarity);
+    const v = rarityValue(id as CardId, rarity);
     const pctInc = `+${v}%`;
     switch (id) {
         case 'damage': {
@@ -159,7 +159,7 @@ function statTransition(
 // Footer note for percentage stats: shows the unit conversion of the transition,
 // "<curPct>% (<curUnit>) → <nextPct>% (<nextUnit>)". Empty for stats with no unit.
 function statFooter(id: string, player: Entity, base: PlayerStartStats, rarity: Rarity): string {
-    const v = rarityValue(id, rarity);
+    const v = rarityValue(id as CardId, rarity);
     const arrow = '<span class="arrowText">→</span>';
     const note = (curPct: number, curVal: number, nextPct: number, nextVal: number, unit: string, decimals = 0) =>
         `${curPct.toFixed(0)}% (${curVal.toFixed(decimals)} ${unit}) ${arrow} ${nextPct.toFixed(0)}% (${nextVal.toFixed(decimals)} ${unit})`;
