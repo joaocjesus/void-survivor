@@ -9,7 +9,7 @@ function makeGs(player: Partial<Entity>, mobs: Partial<Entity>[]): GameState {
     const p: Entity = { id: 0, x: 0, y: 0, vx: 0, vy: 0, radius: 10, kind: 'player', ...player } as Entity;
     entities.set(0, p);
     mobs.forEach((m, i) => entities.set(i + 1, { id: i + 1, x: 0, y: 0, vx: 0, vy: 0, radius: 8, kind: 'mob', ...m } as Entity));
-    return { time: 0, playerId: 0, entities, nextEntityId: mobs.length + 1, spawnTimer: 0, projectileTimer: 0, xp: 0, level: 1, xpNeeded: 5, kills: 0, rng: () => Math.random(), paused: false, upgradePool: [], upgradeCounts: {}, offeredUpgrades: [], runActive: true, startStats: {} as any, meta: { shards: 0, purchased: {}, stats: { totalKills: 0, totalTime: 0, runs: 0, bestTime: 0 } } };
+    return { time: 0, playerId: 0, entities, nextEntityId: mobs.length + 1, spawnTimer: 0, boltTimer: 0, xp: 0, level: 1, xpNeeded: 5, kills: 0, rng: () => Math.random(), paused: false, upgradePool: [], upgradeCounts: {}, offeredUpgrades: [], runActive: true, startStats: {} as any, meta: { shards: 0, purchased: {}, stats: { totalKills: 0, totalTime: 0, runs: 0, bestTime: 0 } } };
 }
 
 describe('math utils', () => {
@@ -42,7 +42,7 @@ describe('chooseShotAngles (multishot targeting)', () => {
         expect(Math.abs(angles[1] - Math.PI / 2)).toBeLessThan(1e-6); // next (south)
     });
 
-    it('ignores enemies beyond projectile reach', () => {
+    it('ignores enemies beyond bolt reach', () => {
         const fallback = 1.234;
         // only mob is at d=20, reach=5 -> out of range -> fallback for every shot
         const angles = chooseShotAngles(0, 0, [mob(20, 0)], 2, 5, fallback);

@@ -5,8 +5,8 @@ Arena survival roguelite prototype built with TypeScript, Vite and PixiJS.
 ## Current Features
 - Smooth player movement (WASD / Arrows / Left Stick)
 - Controller & keyboard navigation for menus, upgrades, pause screen
-- Auto-targeting projectiles with damage, attack speed & projectile speed scaling
-- Magic Aura (AOE damage field) and Magic Orbs (orbiting projectiles) powers
+- Auto-targeting bolts with damage, attack speed & bolt speed scaling
+- Magic Aura (AOE damage field) and Magic Orbs powers
 - Elite enemies with boosted XP gem drops (purple gems = 10× XP)
 - XP, Leveling & upgrade draft (3 random choices) with power comparisons
 - Shards (meta currency) + guaranteed elite shard drops

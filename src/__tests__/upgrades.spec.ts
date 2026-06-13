@@ -7,10 +7,10 @@ function makeState(rng: () => number): GameState {
     const entities = new Map<number, Entity>();
     entities.set(0, { id: 0, x: 0, y: 0, vx: 0, vy: 0, radius: 10, kind: 'player', hp: 10, maxHp: 10, damage: 5, speed: 80 });
     return {
-        time: 0, playerId: 0, entities, nextEntityId: 1, spawnTimer: 0, projectileTimer: 0,
+        time: 0, playerId: 0, entities, nextEntityId: 1, spawnTimer: 0, boltTimer: 0,
         xp: 0, level: 1, xpNeeded: 5, kills: 0, rng, paused: false,
         upgradePool: [...UPGRADES], upgradeCounts: {}, offeredUpgrades: [], runActive: true,
-        startStats: { speed: 80, attackSpeed: 1, projectileSpeed: 100, pickupRange: 50, hp: 10, maxHp: 10, damage: 5, regen: 0, xpGain: 1 } as any,
+        startStats: { speed: 80, attackSpeed: 1, boltSpeed: 100, pickupRange: 50, hp: 10, maxHp: 10, damage: 5, regen: 0, xpGain: 1 } as any,
         meta: { shards: 0, purchased: {}, stats: { totalKills: 0, totalTime: 0, runs: 0, bestTime: 0 } },
     };
 }
@@ -97,12 +97,12 @@ describe('applyUpgradeChoice', () => {
         expect(p.speed).toBeCloseTo(96, 6);
     });
 
-    it('projLifeSpan stacks additively on the multiplier', () => {
+    it('boltLifespan stacks additively on the multiplier', () => {
         const gs = makeState(() => 0.1);
         const p = gs.entities.get(0)!;
-        const life = UPGRADES.find(u => u.id === 'projLifeSpan')!;
+        const life = UPGRADES.find(u => u.id === 'boltLifespan')!;
         applyUpgradeChoice(gs, life, 'common'); // +10% -> 1.1
         applyUpgradeChoice(gs, life, 'common'); // +10% -> 1.2
-        expect(p.projLifeSpanMult).toBeCloseTo(1.2, 6);
+        expect(p.boltLifespanMult).toBeCloseTo(1.2, 6);
     });
 });

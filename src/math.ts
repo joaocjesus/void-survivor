@@ -10,7 +10,7 @@ export function distSq(ax: number, ay: number, bx: number, by: number): number {
     return dx * dx + dy * dy;
 }
 
-// Choose firing angles for `shots` projectiles. Each shot aims at a distinct mob
+// Choose firing angles for `shots` bolts. Each shot aims at a distinct mob
 // within `reach` (nearest first); once distinct enemies run out, extra shots reuse
 // targets round-robin with a small fan spread so they don't perfectly overlap.
 // With no enemies in range, every shot uses `fallbackAngle`.

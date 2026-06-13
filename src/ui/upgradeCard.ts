@@ -1,4 +1,4 @@
-import { FIRE_INTERVAL_BASE, POWERS_VALUES, PROJECTILE_BASE_LIFE } from '../constants/balance';
+import { FIRE_INTERVAL_BASE, POWERS_VALUES, BOLT_BASE_LIFE } from '../constants/balance';
 import { DARK_TEXTURE_PRESETS } from '../backgroundPresets';
 import { darkTextureDataURL } from '../game/background';
 import { Entity, PlayerStartStats, UpgradeDef } from '../types';
@@ -111,13 +111,13 @@ function statTransition(
             const curPct = pct(player.speed ?? base.speed, base.speed);
             return row('Move Speed', `${curPct.toFixed(0)}%`, `${(curPct + v).toFixed(0)}%`, pctInc);
         }
-        case 'projSpeed': {
-            const curPct = pct(player.projectileSpeed ?? base.projectileSpeed, base.projectileSpeed);
-            return row('Projectile Speed', `${curPct.toFixed(0)}%`, `${(curPct + v).toFixed(0)}%`, pctInc);
+        case 'boltSpeed': {
+            const curPct = pct(player.boltSpeed ?? base.boltSpeed, base.boltSpeed);
+            return row('Bolt Speed', `${curPct.toFixed(0)}%`, `${(curPct + v).toFixed(0)}%`, pctInc);
         }
-        case 'projLifeSpan': {
-            const curPct = (player.projLifeSpanMult ?? 1) * 100;
-            return row('Projectile Lifespan', `${curPct.toFixed(0)}%`, `${(curPct + v).toFixed(0)}%`, pctInc);
+        case 'boltLifespan': {
+            const curPct = (player.boltLifespanMult ?? 1) * 100;
+            return row('Bolt Lifespan', `${curPct.toFixed(0)}%`, `${(curPct + v).toFixed(0)}%`, pctInc);
         }
         case 'hp': {
             const cur = player.maxHp ?? base.maxHp;
@@ -133,7 +133,7 @@ function statTransition(
         }
         case 'multiShot': {
             const cur = player.multishot ?? 0;
-            return row('Extra Projectiles', String(cur), String(cur + v), `+${v}`);
+            return row('Extra Bolts', String(cur), String(cur + v), `+${v}`);
         }
         case 'auraRadius': {
             const curPct = player.auraRadiusPct ?? 100;
@@ -174,14 +174,14 @@ function statFooter(id: string, player: Entity, base: PlayerStartStats, rarity: 
             const next = cur + base.speed * v / 100;
             return note(pct(cur, base.speed), cur, pct(next, base.speed), next, 'px/s');
         }
-        case 'projSpeed': {
-            const cur = player.projectileSpeed ?? base.projectileSpeed;
-            const next = cur + base.projectileSpeed * v / 100;
-            return note(pct(cur, base.projectileSpeed), cur, pct(next, base.projectileSpeed), next, 'px/s');
+        case 'boltSpeed': {
+            const cur = player.boltSpeed ?? base.boltSpeed;
+            const next = cur + base.boltSpeed * v / 100;
+            return note(pct(cur, base.boltSpeed), cur, pct(next, base.boltSpeed), next, 'px/s');
         }
-        case 'projLifeSpan': {
-            const curMult = player.projLifeSpanMult ?? 1;
-            return note(curMult * 100, PROJECTILE_BASE_LIFE * curMult, (curMult * 100) + v, PROJECTILE_BASE_LIFE * (curMult + v / 100), 's', 2);
+        case 'boltLifespan': {
+            const curMult = player.boltLifespanMult ?? 1;
+            return note(curMult * 100, BOLT_BASE_LIFE * curMult, (curMult * 100) + v, BOLT_BASE_LIFE * (curMult + v / 100), 's', 2);
         }
         case 'pickupRange': {
             const cur = player.pickupRange ?? base.pickupRange;

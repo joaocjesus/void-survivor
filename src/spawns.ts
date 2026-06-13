@@ -2,7 +2,7 @@ import * as PIXI from 'pixi.js';
 import { GameState, Entity } from './types';
 import { chooseShotAngles, pickAngle } from './math';
 import { playSound } from './audio';
-import { PROJECTILE_BASE_LIFE } from './constants/balance';
+import { BOLT_BASE_LIFE } from './constants/balance';
 
 export interface RenderCtx {
     app: PIXI.Application;
@@ -82,10 +82,10 @@ export function spawnShard(gs: GameState, ctx: RenderCtx, x: number, y: number, 
 // Spread applied to duplicate shots when there are fewer in-range enemies than shots.
 const MULTISHOT_DUP_SPREAD = 0.18; // radians (~10°)
 
-export function fireProjectile(gs: GameState, ctx: RenderCtx) {
+export function fireBolt(gs: GameState, ctx: RenderCtx) {
     const player = gs.entities.get(gs.playerId)!;
-    const speed = player.projectileSpeed || 280;
-    const life = PROJECTILE_BASE_LIFE * (player.projLifeSpanMult ?? 1);
+    const speed = player.boltSpeed || 280;
+    const life = BOLT_BASE_LIFE * (player.boltLifespanMult ?? 1);
     const radius = 3;
     const shots = 1 + (player.multishot || 0);
 
@@ -97,10 +97,11 @@ export function fireProjectile(gs: GameState, ctx: RenderCtx) {
 
     for (const angle of angles) {
         const id = gs.nextEntityId++;
-        const e: Entity = { id, x: player.x, y: player.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius, kind: 'projectile', damage: player.damage, life };
+        const e: Entity = { id, x: player.x, y: player.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius, kind: 'bolt', damage: player.damage, life };
         gs.entities.set(id, e);
-        const g = new PIXI.Graphics(); g.circle(0, 0, radius).fill({ color: 0xffec8d }).stroke({ color: 0xffd54f, width: 1 });
-        g.x = player.x; g.y = player.y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+        const g = new PIXI.Graphics();
+        g.roundRect(-6, -2, 12, 4, 2).fill({ color: 0xffec8d }).stroke({ color: 0xffd54f, width: 1 });
+        g.x = player.x; g.y = player.y; g.rotation = angle; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
     }
     playSound('shoot');
 }

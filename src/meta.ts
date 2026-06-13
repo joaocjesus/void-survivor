@@ -9,7 +9,7 @@ export const defaultStartStats: PlayerStartStats = {
     damage: START_STATS.DAMAGE,
     speed: START_STATS.SPEED,
     attackSpeed: START_STATS.ATTACK_SPEED,
-    projectileSpeed: START_STATS.PROJECTILE_SPEED,
+    boltSpeed: START_STATS.BOLT_SPEED,
     pickupRange: START_STATS.PICKUP_RANGE,
     regen: START_STATS.REGEN,
     xpGain: START_STATS.XP_GAIN,

@@ -31,9 +31,9 @@ export const RARITY_WEIGHTS: Record<Rarity, number> = {
 // `minRarity` defaults to common. `isPower` flags active abilities (extra card
 // styling). `values` is the per-pick magnitude by tier; semantics per card:
 //   additive stats (damage/hp/regen/magicOrbDamage) -> flat amount added
-//   percent stats (attackSpeed/moveSpeed/projSpeed/projLifeSpan/pickupRange/
+//   percent stats (attackSpeed/moveSpeed/boltSpeed/boltLifespan/pickupRange/
 //     auraRadius/magicOrbSpeed) -> percentage points of base (linear, +10 -> 100->110->120)
-//   magicOrbs -> orbs added; multiShot -> extra projectiles added
+//   magicOrbs -> orbs added; multiShot -> extra bolts added
 export interface CardInfo {
     name: string;
     description: string;
@@ -44,7 +44,7 @@ export interface CardInfo {
 
 export const CARDS = {
     damage: {
-        name: 'Damage', description: 'Increase projectile damage', // +flat
+        name: 'Damage', description: 'Increase bolt damage', // +flat
         values: { common: 5, uncommon: 10, rare: 15, epic: 20, legendary: 25 },
     },
     hp: {
@@ -63,12 +63,12 @@ export const CARDS = {
         name: 'Move Speed', description: 'Move faster', // +% of base
         values: { common: 10, uncommon: 20, rare: 30, epic: 40, legendary: 50 },
     },
-    projSpeed: {
-        name: 'Projectile Speed', description: 'Projectiles travel faster', // +% of base
+    boltSpeed: {
+        name: 'Bolt Speed', description: 'Bolts travel faster', // +% of base
         values: { common: 10, uncommon: 20, rare: 30, epic: 40, legendary: 50 },
     },
-    projLifeSpan: {
-        name: 'Projectile Lifespan', description: 'Projectiles last longer (reach farther)', // +% of base
+    boltLifespan: {
+        name: 'Bolt Lifespan', description: 'Bolts last longer (reach farther)', // +% of base
         values: { common: 10, uncommon: 20, rare: 30, epic: 40, legendary: 50 },
     },
     pickupRange: {
@@ -92,7 +92,7 @@ export const CARDS = {
         values: { common: 10, uncommon: 20, rare: 30, epic: 40, legendary: 60 },
     },
     multiShot: {
-        name: 'Multishot', description: 'Fire additional projectiles', minRarity: 'rare', // +extra projectiles
+        name: 'Multishot', description: 'Fire additional bolts', minRarity: 'rare', // +extra bolts
         values: { rare: 1, epic: 2, legendary: 3 },
     },
 } satisfies Record<string, CardInfo>;

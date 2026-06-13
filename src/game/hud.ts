@@ -62,7 +62,7 @@ export function updateStatsOverlay(gs: GameState) {
     rows.push(['Base Damage', String(p.damage || 0)]);
     rows.push(['Attack Speed', (p.attackSpeed || 1).toFixed(2)]);
     rows.push(['Move Speed', String(Math.round(p.speed || 0))]);
-    rows.push(['Projectile Speed', String(Math.round(p.projectileSpeed || 0))]);
+    rows.push(['Bolt Speed', String(Math.round(p.boltSpeed || 0))]);
     rows.push(['Pickup Range', String(Math.round(p.pickupRange || 0))]);
     rows.push(['Regeneration', `${(p.regen || 0).toFixed(2)}/s`]);
     rows.push(['XP Gain', 'x' + (p.xpGain || 1).toFixed(2)]);

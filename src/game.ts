@@ -2,7 +2,7 @@ import * as PIXI from 'pixi.js';
 import { Entity, GameState, OfferedUpgrade, PlayerStartStats, MetaSave } from './types';
 import { playSound } from './audio';
 import { UPGRADES, pickUpgradeOffers, applyUpgradeChoice } from './upgrades';
-import { spawnMob, spawnElite, spawnXp, fireProjectile, spawnParticle, spawnHitBurst, rollShardDrop, spawnShard } from './spawns';
+import { spawnMob, spawnElite, spawnXp, fireBolt, spawnParticle, spawnHitBurst, rollShardDrop, spawnShard } from './spawns';
 import { randomRng } from './rng';
 import { distSq } from './math';
 import { createBackground } from './game/background';
@@ -13,7 +13,10 @@ import { nextXpNeeded, spawnIntervalAt, auraDpsAt } from './balanceUtils';
 import { createPlayerSpriteFromGrid, PlayerSprite } from './sprites/grid';
 import { didMove, MOVE_ANIM_SPEED } from './movement';
 import { renderUpgradeCard } from './ui/upgradeCard';
+import playerSpritesUrl from '../assets/player-sprites.png';
 
+const playerSpriteTexturePromise: Promise<PIXI.Texture | null> =
+    PIXI.Assets.load(playerSpritesUrl).catch(() => null);
 
 export class Game {
     app!: PIXI.Application;
@@ -60,7 +63,7 @@ export class Game {
             entities: new Map(),
             nextEntityId: 1,
             spawnTimer: 0,
-            projectileTimer: 0,
+            boltTimer: 0,
             xp: 0,
             level: 1,
             xpNeeded: 5,
@@ -80,7 +83,7 @@ export class Game {
         const player: Entity = {
             id: this.gs.playerId, x: 0, y: 0, vx: 0, vy: 0, radius: 14, kind: 'player',
             hp: startStats.hp, maxHp: startStats.maxHp, damage: startStats.damage, speed: startStats.speed,
-            attackSpeed: startStats.attackSpeed, projectileSpeed: startStats.projectileSpeed, pickupRange: startStats.pickupRange, regen: startStats.regen, xpGain: startStats.xpGain
+            attackSpeed: startStats.attackSpeed, boltSpeed: startStats.boltSpeed, pickupRange: startStats.pickupRange, regen: startStats.regen, xpGain: startStats.xpGain
         };
         player.x = this.app.renderer.width / 2;
         player.y = this.app.renderer.height / 2;
@@ -93,6 +96,7 @@ export class Game {
         const core = new PIXI.Graphics(); core.circle(0, 0, player.radius - 2).fill({ color: 0x4caf50 });
         const ring = new PIXI.Graphics(); ring.circle(0, 0, player.radius).stroke({ color: 0x9dffc4, width: 2 });
         fallback.addChild(glow); fallback.addChild(core); fallback.addChild(ring);
+        fallback.visible = false;
         playerG.addChild(fallback);
         // aura visual (updated in update loop based on level)
         const aura = new PIXI.Graphics();
@@ -105,11 +109,11 @@ export class Game {
         this.app.stage.addChild(playerG);
         this.sprites.set(player.id, playerG);
 
-        // Try to load an optional sprite sheet for the player.
-        // Place an image at /assets/player-sprites.png (grid). Adjust cols/rows below to match your sheet.
-        try {
-            const tex = await PIXI.Assets.load('/assets/player-sprites.png');
-            if (this.destroyed) return;
+        const tex = await playerSpriteTexturePromise;
+        if (this.destroyed) {
+            return;
+        }
+        if (tex) {
             // New sheet: 4 columns x 6 rows, only right-facing; 21 frames total (last row partial)
             const sprite = createPlayerSpriteFromGrid(tex, { cols: 4, rows: 6, cycleRows: [0, 1, 2, 3, 4, 5], frameCount: 21 });
             // Use sprite's native pixel size (no downscale to hit circle)
@@ -117,17 +121,11 @@ export class Game {
             sprite.view.scale.set(0.15);
             // Insert under aura/orbit but above glow
             playerG.addChildAt(sprite.view, 1);
-            // Hide fallback core if sprite loads
-            fallback.visible = false;
             this.playerSprite = sprite;
-        } catch (err) {
-            // Missing asset is fine; keep fallback visuals
-            // console.warn('Player sprite not found, using vector fallback.', err);
+        } else {
+            fallback.visible = true;
         }
 
-        if (this.destroyed) {
-            return;
-        }
         this.setupInput();
         this.setupUpgradeShortcuts();
         this.app.ticker.add(this.update);
@@ -317,10 +315,10 @@ export class Game {
         });
     }
 
-    // spawning & projectile helpers now in spawns.ts
+    // spawning & bolt helpers now in spawns.ts
     spawnMob() { spawnMob(this.gs, { app: this.app, sprites: this.sprites }); }
     spawnXp(x: number, y: number, value: number, elite: boolean = false) { spawnXp(this.gs, { app: this.app, sprites: this.sprites }, x, y, value, elite); }
-    fireProjectile() { fireProjectile(this.gs, { app: this.app, sprites: this.sprites }); }
+    fireBolt() { fireBolt(this.gs, { app: this.app, sprites: this.sprites }); }
 
     levelUp() {
         const previousNeeded = this.gs.xpNeeded;
@@ -485,12 +483,12 @@ export class Game {
             this.gs.spawnTimer = spawnInterval;
         }
 
-        // fire projectiles (attack speed factor)
-        this.gs.projectileTimer -= dt * (player.attackSpeed || 1);
+        // fire bolts (attack speed factor)
+        this.gs.boltTimer -= dt * (player.attackSpeed || 1);
         const fireInterval = FIRE_INTERVAL_BASE;
-        if (this.gs.projectileTimer <= 0) {
-            this.fireProjectile();
-            this.gs.projectileTimer = fireInterval;
+        if (this.gs.boltTimer <= 0) {
+            this.fireBolt();
+            this.gs.boltTimer = fireInterval;
         }
 
         // movement (instant directional, for snappy feel & clear speed)
@@ -637,7 +635,7 @@ export class Game {
                         hpBar.clear();
                     }
                 }
-            } else if (e.kind === 'projectile') {
+            } else if (e.kind === 'bolt') {
                 e.x += e.vx * dt; e.y += e.vy * dt;
                 e.life! -= dt;
                 if (e.life! <= 0) { toRemove.push(e.id); continue; }

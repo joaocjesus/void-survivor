@@ -2,7 +2,7 @@ import type * as PIXI from 'pixi.js';
 import type { Rarity } from './constants/cards';
 
 export interface Vector2 { x: number; y: number; }
-export type EntityKind = 'player' | 'mob' | 'projectile' | 'xp' | 'shard' | 'particle';
+export type EntityKind = 'player' | 'mob' | 'bolt' | 'xp' | 'shard' | 'particle';
 export interface Entity {
     id: number;
     x: number;
@@ -18,7 +18,7 @@ export interface Entity {
     life?: number;
     value?: number;
     attackSpeed?: number;
-    projectileSpeed?: number;
+    boltSpeed?: number;
     pickupRange?: number;
     invuln?: number;
     regen?: number;
@@ -31,7 +31,7 @@ export interface Entity {
     magicOrbDamage?: number;
     orbSpeedMult?: number;
     multishot?: number;
-    projLifeSpanMult?: number;
+    boltLifespanMult?: number;
     lastOrbitHitAt?: number;
     pulse?: boolean;
     spin?: boolean;
@@ -54,7 +54,7 @@ export interface OfferedUpgrade { def: UpgradeDef; rarity: Rarity; }
 
 export interface MetaUpgradeDef { id: string; name: string; description: string; maxLevel: number; cost: (level: number) => number; apply: (level: number, base: PlayerStartStats) => void; }
 
-export interface PlayerStartStats { hp: number; maxHp: number; damage: number; speed: number; attackSpeed: number; projectileSpeed: number; pickupRange: number; regen: number; xpGain: number; auraDamage?: number; auraRadius?: number; }
+export interface PlayerStartStats { hp: number; maxHp: number; damage: number; speed: number; attackSpeed: number; boltSpeed: number; pickupRange: number; regen: number; xpGain: number; auraDamage?: number; auraRadius?: number; }
 
 export interface MetaSave {
     shards: number;
@@ -68,7 +68,7 @@ export interface GameState {
     entities: Map<number, Entity>;
     nextEntityId: number;
     spawnTimer: number;
-    projectileTimer: number;
+    boltTimer: number;
     xp: number;
     level: number;
     xpNeeded: number;

@@ -8,7 +8,7 @@ export const START_STATS = {
     DAMAGE: 10,
     SPEED: 80,
     ATTACK_SPEED: 1,
-    PROJECTILE_SPEED: 100,
+    BOLT_SPEED: 100,
     PICKUP_RANGE: 50,
     REGEN: 0,
     XP_GAIN: 1,
@@ -29,7 +29,7 @@ export const UPGRADE_VALUES = {
     DAMAGE_PLUS: 5,
     ATTACK_SPEED_MULT: 1.20,
     MOVE_SPEED_MULT: 1.10,
-    PROJECTILE_SPEED_MULT: 1.20,
+    BOLT_SPEED_MULT: 1.20,
     MAX_HP_PLUS: 25,
     PICKUP_RANGE_MULT: 1.25,
     REGEN_PLUS: 0.5, // HP/s
@@ -43,8 +43,8 @@ export const XP_CURVE_FLAT = 5;
 export const SPAWN_INTERVAL_START = 1.4; // seconds at t=0
 export const SPAWN_INTERVAL_MIN = 0.25;  // lower bound
 export const SPAWN_INTERVAL_DECAY = 0.006; // per second reduction before clamp
-export const FIRE_INTERVAL_BASE = 1.65;   // base projectile fire interval (reduced by attack speed multiplier)
-export const PROJECTILE_BASE_LIFE = 1.2;   // seconds a projectile lives before despawn (scaled by projLifeSpan)
+export const FIRE_INTERVAL_BASE = 1.65;   // base bolt fire interval (reduced by attack speed multiplier)
+export const BOLT_BASE_LIFE = 1.2;   // seconds a bolt lives before despawn (scaled by boltLifespan)
 
 // Base power values (static baselines used at level 1)
 export const POWERS_VALUES = {

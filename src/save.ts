@@ -1,5 +1,5 @@
 // Utility to export / import a lightweight snapshot of the current run for debugging.
-// This intentionally does NOT try to serialize every entity (mobs/projectiles/particles)
+// This intentionally does NOT try to serialize every entity (mobs/bolts/particles)
 // because recreating transient combat state perfectly isn't required for skipping early game.
 // Instead we persist player stats + progression (level/xp/kills/shards + meta shards) so a run can resume mid-progression.
 

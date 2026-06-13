@@ -191,7 +191,7 @@ function makeDebugPlayer(base: ReturnType<typeof buildStartStats>): Entity {
     return {
         id: 0, x: 0, y: 0, vx: 0, vy: 0, radius: 14, kind: 'player',
         hp: base.hp, maxHp: base.maxHp, damage: base.damage, speed: base.speed,
-        attackSpeed: base.attackSpeed, projectileSpeed: base.projectileSpeed,
+        attackSpeed: base.attackSpeed, boltSpeed: base.boltSpeed,
         pickupRange: base.pickupRange, regen: base.regen, xpGain: base.xpGain,
     };
 }
