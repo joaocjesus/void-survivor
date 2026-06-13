@@ -90,7 +90,15 @@
 
 .meta-upgrade.focused {
     border-color: #5aa9ff;
+    background: #25303a;
+    transform: translateY(-3px);
     box-shadow: 0 0 0 1px rgba(90, 169, 255, .35), 0 4px 16px rgba(0, 0, 0, .45)
+}
+
+body.controller-input .meta-upgrade:not(.focused):hover {
+    border-color: #2d3942;
+    background: #20252b;
+    transform: none
 }
 
 .meta-upgrade.deny {

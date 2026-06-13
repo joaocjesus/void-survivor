@@ -200,11 +200,13 @@
     pointer-events: none
 }
 
-.upgrade:hover:before {
+.upgrade:hover:before,
+.upgrade.selected:before {
     opacity: 1
 }
 
-.upgrade:hover {
+.upgrade:hover,
+.upgrade.selected {
     background: linear-gradient(150deg, #2b343b, #222a30 55%);
     border-color: var(--rarity);
     transform: translateY(-4px) scale(1.015);
@@ -258,12 +260,24 @@
 }
 
 .upgrade.selected {
-    border-color: #5aa9ff;
-    box-shadow: 0 0 0 1px rgba(90, 169, 255, .35), 0 6px 18px -6px rgba(0, 120, 255, .45)
+    box-shadow: 0 10px 28px -6px rgba(0, 0, 0, .7),
+        0 0 0 2px rgba(90, 169, 255, .5),
+        0 0 22px -2px color-mix(in srgb, var(--rarity) 55%, transparent)
 }
 
 .upgrade.selected:hover {
     border-color: #7bc0ff
+}
+
+body.controller-input .upgrade:not(.selected):hover {
+    background: linear-gradient(145deg, #262d33 0%, #1d2327 60%);
+    border-color: color-mix(in srgb, var(--rarity) 42%, #30363d);
+    transform: none;
+    box-shadow: 0 4px 14px -4px rgba(0, 0, 0, .55), 0 2px 0 rgba(255, 255, 255, .03) inset
+}
+
+body.controller-input .upgrade:not(.selected):hover:before {
+    opacity: 0
 }
 
 .upgrade .body {

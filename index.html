@@ -93,14 +93,38 @@
             </div>
             <div class="debug-tabs" role="tablist" aria-label="Debug test tabs">
                 <button id="debugTabPowerCards" class="active" role="tab" aria-selected="true">Power Up Cards</button>
+                <button id="debugTabController" role="tab" aria-selected="false">Controller</button>
             </div>
-            <div class="debug-filters">
-                <label>Card <select id="debugFilterCard"></select></label>
-                <label>Rarity <select id="debugFilterRarity"></select></label>
-                <label>Min level <select id="debugFilterMinLevel"></select></label>
-                <label>Max level <select id="debugFilterMaxLevel"></select></label>
+            <div id="debugPowerCardsPane">
+                <div class="debug-filters">
+                    <label>Card <select id="debugFilterCard"></select></label>
+                    <label>Rarity <select id="debugFilterRarity"></select></label>
+                    <label>Min level <select id="debugFilterMinLevel"></select></label>
+                    <label>Max level <select id="debugFilterMaxLevel"></select></label>
+                </div>
+                <div id="debugPowerCards" class="debug-card-grid"></div>
             </div>
-            <div id="debugPowerCards" class="debug-card-grid"></div>
+            <div id="debugControllerPane" class="debug-controller" style="display:none;">
+                <div id="debugControllerStatus" class="debug-controller-status"></div>
+                <div class="debug-controller-grid">
+                    <section>
+                        <h3>Controller</h3>
+                        <div id="debugControllerInfo" class="debug-kv"></div>
+                    </section>
+                    <section>
+                        <h3>Game Input</h3>
+                        <div id="debugControllerNormalized" class="debug-kv"></div>
+                    </section>
+                    <section>
+                        <h3>Axes</h3>
+                        <div id="debugControllerAxes" class="debug-axis-list"></div>
+                    </section>
+                    <section>
+                        <h3>Buttons</h3>
+                        <div id="debugControllerButtons" class="debug-button-list"></div>
+                    </section>
+                </div>
+            </div>
         </div>
     </div>
     <!-- Top HUD strip for XP + Time -->

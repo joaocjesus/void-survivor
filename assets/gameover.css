@@ -66,6 +66,11 @@
     border-color: #4ca3d8
 }
 
+body.controller-input .goButtons button:not(.selected):hover {
+    background: #262d33;
+    border-color: #3a434b
+}
+
 .goButtons button.selected,
 .goButtons button:focus-visible {
     outline: none;

@@ -5,15 +5,97 @@ export interface InputHandlers {
     pollGamepad: () => void;
 }
 
+export interface GamepadDirections {
+    axH: number;
+    axV: number;
+    buttons: boolean[];
+    left: boolean;
+    right: boolean;
+    up: boolean;
+    down: boolean;
+    anyDir: boolean;
+    anyButton: boolean;
+}
+
 export function createInputState(): InputState { return { up: false, down: false, left: false, right: false }; }
+
+const axis0HatPadKeys = new Set<string>();
+let pointerRestoreWired = false;
+
+export function markControllerInput() {
+    document.body?.classList.add('controller-input');
+}
+
+export function setupPointerInputRestore() {
+    if (pointerRestoreWired) return;
+    pointerRestoreWired = true;
+    window.addEventListener('pointermove', () => {
+        document.body?.classList.remove('controller-input');
+    }, { passive: true });
+    window.addEventListener('mousemove', () => {
+        document.body?.classList.remove('controller-input');
+    }, { passive: true });
+}
 
 // First connected gamepad at any index (handles controllers plugged in mid-session
 // and pads that report at index 1+). Returns null until the browser exposes one
 // (which happens after the first button press for security reasons).
 export function getActivePad(): Gamepad | null {
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    for (const p of pads) if (p) return p;
-    return null;
+    const connected = Array.from(pads).filter((p): p is Gamepad => !!p && p.connected !== false);
+    return connected.find(p => p.mapping === 'standard') ?? connected[0] ?? null;
+}
+
+function axis(axes: readonly number[], index: number): number {
+    return axes[index] ?? 0;
+}
+
+function gamepadKey(gp: Gamepad): string {
+    return `${gp.index}:${gp.id}`;
+}
+
+function noHatDirection() {
+    return { left: false, right: false, up: false, down: false };
+}
+
+function povHatDirections(value: number) {
+    // POV/hat axis reported by some GameSir modes:
+    // idle≈3.286, up=-1, right≈-0.429, down≈0.143, left≈0.714.
+    if (value > 1.2) return noHatDirection();
+    if (value <= -0.85) return { left: false, right: false, up: true, down: false };
+    if (value <= -0.25) return { left: false, right: true, up: false, down: false };
+    if (value <= 0.45) return { left: false, right: false, up: false, down: true };
+    if (value <= 0.85) return { left: true, right: false, up: false, down: false };
+    return noHatDirection();
+}
+
+export function readGamepadDirections(gp: Gamepad, dead = 0.30): GamepadDirections {
+    const buttons = gp.buttons.map(b => !!b && b.pressed);
+    const key = gamepadKey(gp);
+    const axis0 = axis(gp.axes, 0);
+    if (Math.abs(axis0) > 1.2) axis0HatPadKeys.add(key);
+
+    const axis0IsHat = axis0HatPadKeys.has(key);
+    const rawH = axis(gp.axes, axis0IsHat ? 1 : 0);
+    const rawV = axis(gp.axes, axis0IsHat ? 2 : 1);
+    const axH = Math.abs(rawH) > dead ? rawH : 0;
+    const axV = Math.abs(rawV) > dead ? rawV : 0;
+    const standard = gp.mapping === 'standard';
+    const hat = axis0IsHat ? povHatDirections(axis0) : noHatDirection();
+    const left = axH < -dead || hat.left || (standard && !!buttons[14]);
+    const right = axH > dead || hat.right || (standard && !!buttons[15]);
+    const up = axV < -dead || hat.up || (standard && !!buttons[12]);
+    const down = axV > dead || hat.down || (standard && !!buttons[13]);
+    const anyDir = left || right || up || down;
+    const anyButton = buttons.some(Boolean);
+    return { axH, axV, buttons, left, right, up, down, anyDir, anyButton };
+}
+
+function clearDirectionalInput(input: InputState) {
+    input.left = false;
+    input.right = false;
+    input.up = false;
+    input.down = false;
 }
 
 export function setupKeyboard(input: InputState, gs: GameState, helpers: { onPause: () => void; onResume: () => void; toggleStats: () => void; onUpgradeNav: (dir: -1 | 1) => void; onUpgradeConfirm: () => void; lastInputDeviceRef: { v: 'keyboard' | 'gamepad'; } }): () => void {
@@ -55,22 +137,18 @@ export function setupGamepad(input: InputState, gs: GameState, helpers: { onPaus
     let lastHAxisDir = 0;
     let disposed = false;
     let rafId = 0;
-    const DEAD = 0.30; // ignore analog-stick drift (was causing phantom movement)
     const poll = () => {
         if (disposed) return;
         const gp = getActivePad();
         if (gp) {
-            const axH = gp.axes[0] || 0;
-            const axV = gp.axes[1] || 0;
-            const buttons = gp.buttons.map(b => !!b && b.pressed);
+            const pad = readGamepadDirections(gp);
+            const { axH, buttons, left, right, up, down } = pad;
             // Direction from stick OR d-pad (12=up,13=down,14=left,15=right) so a
             // mis-mapped/drifting stick still works via the d-pad.
-            const left = axH < -DEAD || !!buttons[14];
-            const right = axH > DEAD || !!buttons[15];
-            const up = axV < -DEAD || !!buttons[12];
-            const down = axV > DEAD || !!buttons[13];
-            const anyDir = left || right || up || down;
-            if (anyDir || buttons.some(b => b)) helpers.lastInputDeviceRef.v = 'gamepad';
+            if (pad.anyDir || pad.anyButton) {
+                helpers.lastInputDeviceRef.v = 'gamepad';
+                markControllerInput();
+            }
             if (helpers.lastInputDeviceRef.v === 'gamepad') {
                 input.left = left; input.right = right; input.up = up; input.down = down;
             }
@@ -88,6 +166,10 @@ export function setupGamepad(input: InputState, gs: GameState, helpers: { onPaus
                 if (buttons[0] && !lastButtons[0]) helpers.onUpgradeConfirm();
             }
             lastButtons = buttons;
+        } else if (helpers.lastInputDeviceRef.v === 'gamepad') {
+            clearDirectionalInput(input);
+            lastButtons = [];
+            lastHAxisDir = 0;
         }
         rafId = requestAnimationFrame(poll);
     };

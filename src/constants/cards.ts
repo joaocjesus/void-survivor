@@ -18,8 +18,8 @@ export const RARITY_ORDER: Record<Rarity, number> = {
 // ----------------------------------------------------------------------------
 // Global default relative weights per tier (higher = more frequent).
 export const RARITY_WEIGHTS: Record<Rarity, number> = {
-    common: 70,
-    uncommon: 20,
+    common: 65,
+    uncommon: 25,
     rare: 7.5,
     epic: 2.3,
     legendary: 0.2,

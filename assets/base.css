@@ -8,6 +8,11 @@ body {
     overflow: hidden
 }
 
+body.controller-input,
+body.controller-input * {
+    cursor: none !important
+}
+
 #app {
     width: 100vw;
     height: 100vh;

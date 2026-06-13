@@ -4,16 +4,12 @@ import { updateRefundButton, handleRefundClick } from './ui/metaRefund';
 import { buildMetaStats } from './ui/metaStats';
 import { confirmAction } from './ui/confirm';
 import { getAudioSettings, setMasterVolume, setMuted } from './audio';
-import { UPGRADES } from './upgrades';
-import { renderUpgradeCard } from './ui/upgradeCard';
-import { RARITIES, RARITY_ORDER, cardMinRarity, type CardId, type Rarity } from './constants/cards';
-import { getActivePad } from './game/input';
-import type { Entity } from './types';
+import { openDebugTestPanel } from './ui/debugTest';
+import { wireDevOptions } from './ui/debugOptions';
+import { getActivePad, markControllerInput, readGamepadDirections, setupPointerInputRestore } from './game/input';
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
-// Dev options wiring guard must be declared before wireDevOptions definition / use
-let devOptionsWired = false;
 
 function renderMeta() {
     const list = document.getElementById('metaList');
@@ -122,9 +118,9 @@ function wireMenu() {
         show('statsMenu');
     });
     document.getElementById('btnDebugTest')?.addEventListener('click', () => {
-        renderDebugTestPanel();
         hide('mainMenu');
         show('debugTestMenu');
+        openDebugTestPanel(meta);
     });
     document.getElementById('btnBackMeta')?.addEventListener('click', () => { hide('metaMenu'); show('mainMenu'); });
     document.getElementById('btnBackStats')?.addEventListener('click', goMain);
@@ -163,79 +159,6 @@ function wireMenu() {
         hide('mainMenu'); hide('metaMenu'); hide('instructionsMenu'); hide('statsMenu'); hide('debugTestMenu');
         show('settingsMenu');
     });
-}
-
-const MAX_DEBUG_LEVEL = 15;
-let debugFiltersReady = false;
-
-function setupDebugFilters() {
-    const cardSel = document.getElementById('debugFilterCard') as HTMLSelectElement | null;
-    const raritySel = document.getElementById('debugFilterRarity') as HTMLSelectElement | null;
-    const minSel = document.getElementById('debugFilterMinLevel') as HTMLSelectElement | null;
-    const maxSel = document.getElementById('debugFilterMaxLevel') as HTMLSelectElement | null;
-    if (!cardSel || !raritySel || !minSel || !maxSel || debugFiltersReady) return;
-    debugFiltersReady = true;
-    const opt = (v: string, l: string) => { const o = document.createElement('option'); o.value = v; o.textContent = l; return o; };
-    cardSel.appendChild(opt('all', 'All cards'));
-    for (const u of UPGRADES) cardSel.appendChild(opt(u.id, u.name));
-    raritySel.appendChild(opt('all', 'All rarities'));
-    for (const r of RARITIES) raritySel.appendChild(opt(r, r));
-    for (let i = 0; i <= MAX_DEBUG_LEVEL; i++) {
-        minSel.appendChild(opt(String(i), i === 0 ? '0 (fresh)' : String(i)));
-        maxSel.appendChild(opt(String(i), i === 0 ? '0 (fresh)' : String(i)));
-    }
-    for (const s of [cardSel, raritySel, minSel, maxSel]) s.addEventListener('change', renderDebugTestPanel);
-}
-
-function makeDebugPlayer(base: ReturnType<typeof buildStartStats>): Entity {
-    return {
-        id: 0, x: 0, y: 0, vx: 0, vy: 0, radius: 14, kind: 'player',
-        hp: base.hp, maxHp: base.maxHp, damage: base.damage, speed: base.speed,
-        attackSpeed: base.attackSpeed, boltSpeed: base.boltSpeed,
-        pickupRange: base.pickupRange, regen: base.regen, xpGain: base.xpGain,
-    };
-}
-
-function renderDebugTestPanel() {
-    setupDebugFilters();
-    const root = document.getElementById('debugPowerCards');
-    if (!root) return;
-    root.innerHTML = '';
-    const base = buildStartStats(meta);
-    const cardFilter = (document.getElementById('debugFilterCard') as HTMLSelectElement | null)?.value ?? 'all';
-    const rarityFilter = (document.getElementById('debugFilterRarity') as HTMLSelectElement | null)?.value ?? 'all';
-    const minLevel = parseInt((document.getElementById('debugFilterMinLevel') as HTMLSelectElement | null)?.value ?? '0', 10) || 0;
-    const maxLevel = Math.max(minLevel, parseInt((document.getElementById('debugFilterMaxLevel') as HTMLSelectElement | null)?.value ?? '0', 10) || 0);
-
-    for (const upgrade of UPGRADES) {
-        if (cardFilter !== 'all' && upgrade.id !== cardFilter) continue;
-        const minOrder = RARITY_ORDER[cardMinRarity(upgrade.id as CardId)];
-        for (const rarity of RARITIES) {
-            if (RARITY_ORDER[rarity] < minOrder) continue;
-            if (rarityFilter !== 'all' && rarity !== rarityFilter) continue;
-            for (let level = minLevel; level <= maxLevel; level++) {
-                addDebugCard(root, upgrade, base, rarity, level);
-            }
-        }
-    }
-}
-
-function addDebugCard(root: HTMLElement, upgrade: (typeof UPGRADES)[number], base: ReturnType<typeof buildStartStats>, rarity: Rarity, level: number) {
-    // Simulate `level` prior picks at this rarity so the preview's "from" value is realistic.
-    const player = makeDebugPlayer(base);
-    const tmpGs = { entities: new Map([[0, player]]), playerId: 0 } as any;
-    for (let i = 0; i < level; i++) upgrade.apply(tmpGs, rarity);
-
-    const wrap = document.createElement('div');
-    wrap.className = 'debug-card-preview';
-    const title = document.createElement('div');
-    title.className = 'debug-card-label';
-    title.textContent = `${upgrade.name} · ${rarity}${level ? ` · L${level}` : ''}`;
-    const card = renderUpgradeCard(upgrade, { player, base, rarity, increments: level });
-    card.classList.add('debugPreviewCard');
-    wrap.appendChild(title);
-    wrap.appendChild(card);
-    root.appendChild(wrap);
 }
 
 function wireAudioSettings() {
@@ -359,15 +282,16 @@ function setupMenuInput() {
         collectVisibleMenuButtons();
         const gp = getActivePad();
         if (gp) {
-            const buttons = gp.buttons.map(b => b.pressed);
-            const axV = gp.axes[1] || 0;
-            const axH = gp.axes[0] || 0;
-            const dead = 0.35;
-            const vDir = Math.abs(axV) > dead ? (axV > 0 ? 1 : -1) : 0;
-            const hDir = Math.abs(axH) > dead ? (axH > 0 ? 1 : -1) : 0;
+            const pad = readGamepadDirections(gp, 0.35);
+            const buttons = pad.buttons;
+            const vDir = pad.axV > 0 ? 1 : (pad.axV < 0 ? -1 : 0);
+            const hDir = pad.axH > 0 ? 1 : (pad.axH < 0 ? -1 : 0);
             const axisUsed = vDir !== 0;
-            const btnUsed = buttons.some((b, i) => b && [0, 12, 13, 14, 15].includes(i)) || hDir !== 0;
-            if (axisUsed || btnUsed) lastMenuInput = 'gamepad';
+            const btnUsed = pad.anyButton || hDir !== 0;
+            if (axisUsed || btnUsed) {
+                lastMenuInput = 'gamepad';
+                markControllerInput();
+            }
             const metaVisible = document.getElementById('metaMenu')?.style.display !== 'none';
             if (lastMenuInput === 'gamepad') {
                 if (metaVisible) {
@@ -404,6 +328,7 @@ function setupMenuInput() {
 }
 
 function bootstrap() {
+    setupPointerInputRestore();
     wireMenu();
     show('mainMenu');
     // Hide HUD until a run starts
@@ -411,7 +336,7 @@ function bootstrap() {
     collectVisibleMenuButtons();
     setupMenuInput();
     // Attempt to load debug module early (non-fatal if missing)
-    wireDevOptions();
+    wireDevOptions({ getCurrentGame: () => currentGame, meta, saveMeta, renderMeta });
     // Listen for in-game restart requests (Game Over restart button)
     window.addEventListener('voidsurvivor-restart', () => {
         const root = document.getElementById('app');
@@ -447,71 +372,3 @@ function updateStatsPanel() {
 }
 
 bootstrap();
-
-// ---------------- Dev Options (env-controlled) ----------------
-function wireDevOptions() {
-    if (devOptionsWired) return; // idempotent guard
-    const btnExport = document.getElementById('btnDebugExport') as HTMLButtonElement | null;
-    const btnImport = document.getElementById('btnDebugImport') as HTMLButtonElement | null;
-    const debugContainer = btnExport?.parentElement as HTMLElement | undefined;
-    if (!btnExport || !btnImport || !debugContainer) return;
-    const env = (import.meta as any).env || {};
-    // Only allow official Vite-exposed variable
-    devOptionsWired = env.VITE_DEV_OPTIONS === 'true';
-    if (!devOptionsWired) return; // remain hidden (display:none inline)
-    debugContainer.style.display = 'block';
-    console.info('[dev] Developer options enabled');
-    // Attach snapshot handlers lazily
-    // Toast helper (scoped here for dev tools use)
-    const pushToast = (msg: string, kind: 'info' | 'success' = 'info') => {
-        const root = document.getElementById('toastRoot');
-        if (!root) return;
-        const el = document.createElement('div');
-        el.className = `toast ${kind}`;
-        el.textContent = msg;
-        root.appendChild(el);
-        setTimeout(() => el.remove(), 6600);
-    };
-    btnExport.addEventListener('click', async () => {
-        try {
-            const { buildSnapshot, downloadSnapshot } = await import('./save');
-            let snap = currentGame ? buildSnapshot(currentGame) : { version: 1, timestamp: Date.now(), meta };
-            if (snap) {
-                downloadSnapshot(snap as any);
-                pushToast('Snapshot exported', 'success');
-            }
-        } catch (e) {
-            console.warn('Export failed', e);
-            pushToast('Export failed', 'info');
-        }
-    });
-    btnImport.addEventListener('click', async () => {
-        try {
-            const { promptLoadSnapshot, applySnapshot } = await import('./save');
-            promptLoadSnapshot(snap => {
-                if (currentGame) {
-                    applySnapshot(currentGame!, snap as any);
-                } else {
-                    // Merge into global meta when no active run
-                    meta.shards = Math.max(meta.shards, snap.meta.shards);
-                    meta.purchased = { ...meta.purchased, ...snap.meta.purchased };
-                    meta.stats.totalKills = Math.max(meta.stats.totalKills, snap.meta.stats.totalKills);
-                    meta.stats.totalTime = Math.max(meta.stats.totalTime, snap.meta.stats.totalTime);
-                    meta.stats.runs = Math.max(meta.stats.runs, snap.meta.stats.runs);
-                    meta.stats.bestTime = Math.max(meta.stats.bestTime, snap.meta.stats.bestTime);
-                    saveMeta(meta);
-                    const shardsEl = document.getElementById('metaShards');
-                    if (shardsEl) shardsEl.textContent = `Shards: ${meta.shards}`;
-                    // If meta menu open, rerender to reflect new levels
-                    const metaVisible = document.getElementById('metaMenu')?.style.display !== 'none';
-                    if (metaVisible) renderMeta();
-                    console.info('[dev] Meta snapshot imported without active run');
-                }
-                pushToast('Snapshot imported', 'success');
-            });
-        } catch (e) {
-            console.warn('Import failed', e);
-            pushToast('Import failed', 'info');
-        }
-    });
-}

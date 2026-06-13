@@ -7,11 +7,11 @@ import { randomRng } from './rng';
 import { distSq } from './math';
 import { createBackground } from './game/background';
 import { updateHud, updateStatsOverlay } from './game/hud';
-import { createInputState, setupKeyboard, setupGamepad } from './game/input';
+import { createInputState, getActivePad, readGamepadDirections, setupKeyboard, setupGamepad } from './game/input';
 import { FIRE_INTERVAL_BASE, POWERS_VALUES } from './constants/balance';
 import { nextXpNeeded, spawnIntervalAt, auraDpsAt } from './balanceUtils';
 import { createPlayerSpriteFromGrid, PlayerSprite } from './sprites/grid';
-import { didMove, MOVE_ANIM_SPEED } from './movement';
+import { advanceChaserUntilContact, didMove, MOVE_ANIM_SPEED } from './movement';
 import { renderUpgradeCard } from './ui/upgradeCard';
 import playerSpritesUrl from '../assets/player-sprites.png';
 
@@ -278,11 +278,11 @@ export class Game {
         let lastV = 0;
         const pollPause = () => {
             if (pm.style.display !== 'flex') return; // stop when closed
-            const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-            const gp = pads && pads[0];
+            const gp = getActivePad();
             if (gp) {
-                const buttonsGp = gp.buttons.map(b => b.pressed);
-                const axV = gp.axes[1] || 0; const dead = 0.4; const v = Math.abs(axV) > dead ? (axV > 0 ? 1 : -1) : 0;
+                const pad = readGamepadDirections(gp, 0.4);
+                const buttonsGp = pad.buttons;
+                const v = pad.axV > 0 ? 1 : (pad.axV < 0 ? -1 : 0);
                 const up = (buttonsGp[12] && !lastButtons[12]) || (v === -1 && lastV !== -1);
                 const down = (buttonsGp[13] && !lastButtons[13]) || (v === 1 && lastV !== 1);
                 if (up) { pIndex = (pIndex + buttons.length - 1) % buttons.length; apply(); }
@@ -418,11 +418,11 @@ export class Game {
             let lastH = 0;
             const pollGO = () => {
                 if (this.upgradeModal?.style.display !== 'flex') return; // stop if closed
-                const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-                const gp = pads && pads[0];
+                const gp = getActivePad();
                 if (gp) {
-                    const buttons = gp.buttons.map(b => b.pressed);
-                    const axH = gp.axes[0] || 0; const dead = 0.4; const h = Math.abs(axH) > dead ? (axH > 0 ? 1 : -1) : 0;
+                    const pad = readGamepadDirections(gp, 0.4);
+                    const buttons = pad.buttons;
+                    const h = pad.axH > 0 ? 1 : (pad.axH < 0 ? -1 : 0);
                     if ((buttons[14] && !lastButtons[14]) || (h === -1 && lastH !== -1)) { goIndex = (goIndex + goButtons.length - 1) % goButtons.length; applyGoSel(); }
                     if ((buttons[15] && !lastButtons[15]) || (h === 1 && lastH !== 1)) { goIndex = (goIndex + 1) % goButtons.length; applyGoSel(); }
                     if (buttons[0] && !lastButtons[0]) { goButtons[goIndex].click(); }
@@ -455,6 +455,28 @@ export class Game {
 
     // HUD & stats now handled via separate module
     updateHud() { updateHud(this.gs); }
+
+    private pushTouchingMobs(player: Entity) {
+        for (const mob of this.gs.entities.values()) {
+            if (mob.kind !== 'mob') continue;
+            const minDist = player.radius + mob.radius;
+            const dx = mob.x - player.x;
+            const dy = mob.y - player.y;
+            const d = Math.hypot(dx, dy);
+            if (d >= minDist) continue;
+
+            if (d > 0) {
+                mob.x = player.x + (dx / d) * minDist;
+                mob.y = player.y + (dy / d) * minDist;
+            } else {
+                const angle = mob.id * 2.399963229728653;
+                mob.x = player.x + Math.cos(angle) * minDist;
+                mob.y = player.y + Math.sin(angle) * minDist;
+            }
+            mob.vx = 0;
+            mob.vy = 0;
+        }
+    }
 
     update = (ticker: PIXI.Ticker) => {
         if (!this.gs || this.gs.paused) return; // paused or not ready
@@ -521,6 +543,7 @@ export class Game {
         const h = this.app.renderer.height;
         player.x = Math.max(player.radius, Math.min(w - player.radius, player.x));
         player.y = Math.max(player.radius, Math.min(h - player.radius, player.y));
+        this.pushTouchingMobs(player);
 
         // Update facing direction immediately from input (responsive orientation)
         if (this.playerSprite) {
@@ -607,17 +630,13 @@ export class Game {
             if (e.kind === 'player') continue;
             if (toRemove.includes(e.id)) continue;
             if (e.kind === 'mob') {
-                const dx = player.x - e.x; const dy = player.y - e.y; const len = Math.hypot(dx, dy) || 1;
-                e.vx = (dx / len) * (e.speed || 60);
-                e.vy = (dy / len) * (e.speed || 60);
-                e.x += e.vx * dt; e.y += e.vy * dt;
-                const r = player.radius + e.radius;
-                if (distSq(player.x, player.y, e.x, e.y) < r * r) {
+                const contact = advanceChaserUntilContact(e, player, e.speed || 60, dt);
+                e.x = contact.x;
+                e.y = contact.y;
+                e.vx = contact.vx;
+                e.vy = contact.vy;
+                if (contact.touching) {
                     this.damagePlayer(e.damage || 5);
-                    // slight pushback after collision to reduce repeated hits
-                    const push = 10;
-                    const dxn = (player.x - e.x); const dyn = (player.y - e.y); const lenp = Math.hypot(dxn, dyn) || 1;
-                    player.x += (dxn / lenp) * push; player.y += (dyn / lenp) * push;
                 }
                 // Update mob health bar (only show if damaged)
                 const hpBar = e.hpRing;
