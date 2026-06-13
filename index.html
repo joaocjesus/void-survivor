@@ -18,6 +18,7 @@
             <button id="btnStats">Statistics</button>
             <button id="btnInstructions">Instructions</button>
             <button id="btnSettings">Settings</button>
+            <button id="btnDebugTest">Debug / Test</button>
             <div class="small">v0.1 prototype</div>
         </div>
     </div>
@@ -62,7 +63,14 @@
     <div id="settingsMenu" class="menu" style="display:none;">
         <div class="menu-panel" style="max-width:520px; text-align:left;">
             <h2 style="margin-top:0;">Settings</h2>
-            <div style="margin:10px 0 20px; font-size:14px; opacity:.8;">(More settings coming soon.)</div>
+            <div class="settings-group">
+                <div class="settings-row">
+                    <label for="audioVolume">Audio</label>
+                    <output id="audioVolumeValue" for="audioVolume">75%</output>
+                </div>
+                <input id="audioVolume" type="range" min="0" max="100" step="5" value="75" />
+                <button id="btnMuteAudio" class="secondary" aria-pressed="false" style="margin-top:10px;">Mute</button>
+            </div>
             <button id="btnResetMeta" class="danger" style="margin-top:4px;">Reset Save</button>
             <div class="debugSection" style="display: none;"
                 style="margin-top:28px; border-top:1px solid rgba(255,255,255,.08); padding-top:18px;">
@@ -75,6 +83,24 @@
                     let you resume mid-run for testing. Disabled in production builds.</div>
             </div>
             <button id="btnBackSettings" class="back-btn" style="margin-top:20px;">Back</button>
+        </div>
+    </div>
+    <div id="debugTestMenu" class="menu" style="display:none;">
+        <div class="menu-panel debug-test-panel">
+            <div class="debug-test-header">
+                <h2>Debug / Test</h2>
+                <button id="btnBackDebugTest" class="back-btn">Back</button>
+            </div>
+            <div class="debug-tabs" role="tablist" aria-label="Debug test tabs">
+                <button id="debugTabPowerCards" class="active" role="tab" aria-selected="true">Power Up Cards</button>
+            </div>
+            <div class="debug-filters">
+                <label>Card <select id="debugFilterCard"></select></label>
+                <label>Rarity <select id="debugFilterRarity"></select></label>
+                <label>Min level <select id="debugFilterMinLevel"></select></label>
+                <label>Max level <select id="debugFilterMaxLevel"></select></label>
+            </div>
+            <div id="debugPowerCards" class="debug-card-grid"></div>
         </div>
     </div>
     <!-- Top HUD strip for XP + Time -->
@@ -97,8 +123,7 @@
     <!-- Shards bottom-left -->
     <div id="shardsHud" class="miniHud">
         <div class="shardIcon" aria-hidden="true"></div>
-        <div class="shardText"><span id="runShards">0</span><span class="sep"> / </span><span id="totalShards">0</span>
-        </div>
+        <div class="shardText"><span id="runShards">0</span></div>
     </div>
     <!-- HP bottom-center -->
     <div id="hpHud" class="miniHud">
@@ -114,7 +139,7 @@
         <div class="panel">
             <h2>Choose an Upgrade</h2>
             <div class="upgrades" id="upgradeChoices"></div>
-            <div class="footerHint">Press number keys (1-3) or click</div>
+            <div class="footerHint">Press 1-3, Enter, A, or click</div>
         </div>
     </div>
     <!-- Pause Menu -->
@@ -126,6 +151,8 @@
             <div class="pauseBtns" style="display:flex; flex-direction:column; gap:14px;">
                 <button id="btnResume" class="pmBtn"
                     style="padding:14px 18px; font-size:16px; background:#25313b; color:#dfe9f1; border:1px solid #355062; border-radius:12px; cursor:pointer; transition:.15s background, border-color, transform;">Resume</button>
+                <button id="btnPauseSettings" class="pmBtn"
+                    style="padding:14px 18px; font-size:16px; background:#25313b; color:#dfe9f1; border:1px solid #355062; border-radius:12px; cursor:pointer; transition:.15s background, border-color, transform;">Settings</button>
                 <button id="btnQuit" class="pmBtn"
                     style="padding:14px 18px; font-size:16px; background:#25313b; color:#dfe9f1; border:1px solid #355062; border-radius:12px; cursor:pointer; transition:.15s background, border-color, transform;">Quit
                     to Menu</button>

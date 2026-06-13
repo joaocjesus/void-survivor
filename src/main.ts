@@ -3,6 +3,12 @@ import { META_UPGRADES, buildStartStats, loadMeta, purchaseMeta, saveMeta, reset
 import { updateRefundButton, handleRefundClick } from './ui/metaRefund';
 import { buildMetaStats } from './ui/metaStats';
 import { confirmAction } from './ui/confirm';
+import { getAudioSettings, setMasterVolume, setMuted } from './audio';
+import { UPGRADES } from './upgrades';
+import { renderUpgradeCard } from './ui/upgradeCard';
+import { RARITIES, RARITY_ORDER, type Rarity } from './constants/rarity';
+import { getActivePad } from './game/input';
+import type { Entity } from './types';
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
@@ -65,13 +71,23 @@ function hide(id: string) {
     const el = document.getElementById(id); if (el) el.style.display = 'none';
     if (id === 'metaMenu') { getMetaCards().forEach(c => c.classList.remove('focused')); }
 }
+function setHudVisible(visible: boolean) {
+    for (const id of ['topHud', 'shardsHud', 'hpHud']) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = visible ? '' : 'none';
+    }
+}
 
 function startRun() {
     hide('mainMenu'); hide('metaMenu');
-    const hud = document.querySelector('.hud') as HTMLElement | null; if (hud) hud.style.display = 'block';
+    setHudVisible(true);
     const root = document.getElementById('app');
     if (!root) throw new Error('Missing #app element');
-    if (currentGame) { location.reload(); return; }
+    if (currentGame) {
+        currentGame.destroy();
+        root.innerHTML = '';
+        currentGame = null;
+    }
     const startStats = buildStartStats(meta);
     currentGame = new Game(root, startStats, meta, onRunEnd);
 }
@@ -87,7 +103,17 @@ function onRunEnd(result: { time: number; kills: number; shards: number; }) {
 }
 
 function wireMenu() {
-    const goMain = () => { show('mainMenu'); hide('metaMenu'); hide('instructionsMenu'); hide('settingsMenu'); hide('statsMenu'); };
+    const goMain = () => { show('mainMenu'); hide('metaMenu'); hide('instructionsMenu'); hide('settingsMenu'); hide('statsMenu'); hide('debugTestMenu'); };
+    const closeSettings = () => {
+        hide('settingsMenu');
+        if (settingsReturnTarget === 'pause') {
+            const pauseMenu = document.getElementById('pauseMenu');
+            if (pauseMenu) pauseMenu.style.display = 'flex';
+            settingsReturnTarget = 'main';
+            return;
+        }
+        goMain();
+    };
     document.getElementById('btnStart')?.addEventListener('click', startRun);
     document.getElementById('btnMeta')?.addEventListener('click', () => { renderMeta(); hide('mainMenu'); show('metaMenu'); });
     document.getElementById('btnStats')?.addEventListener('click', () => {
@@ -95,12 +121,18 @@ function wireMenu() {
         hide('mainMenu');
         show('statsMenu');
     });
+    document.getElementById('btnDebugTest')?.addEventListener('click', () => {
+        renderDebugTestPanel();
+        hide('mainMenu');
+        show('debugTestMenu');
+    });
     document.getElementById('btnBackMeta')?.addEventListener('click', () => { hide('metaMenu'); show('mainMenu'); });
     document.getElementById('btnBackStats')?.addEventListener('click', goMain);
+    document.getElementById('btnBackDebugTest')?.addEventListener('click', goMain);
     document.getElementById('btnInstructions')?.addEventListener('click', () => { hide('mainMenu'); show('instructionsMenu'); });
     document.getElementById('btnBackInstructions')?.addEventListener('click', goMain);
-    document.getElementById('btnSettings')?.addEventListener('click', () => { hide('mainMenu'); show('settingsMenu'); });
-    document.getElementById('btnBackSettings')?.addEventListener('click', goMain);
+    document.getElementById('btnSettings')?.addEventListener('click', () => { settingsReturnTarget = 'main'; hide('mainMenu'); show('settingsMenu'); });
+    document.getElementById('btnBackSettings')?.addEventListener('click', closeSettings);
     document.getElementById('btnResetMeta')?.addEventListener('click', async () => {
         const ok = await confirmAction('Reset ALL progress (meta + stats)?\nThis cannot be undone.', { acceptText: 'Reset', cancelText: 'Cancel' });
         if (ok) {
@@ -125,12 +157,116 @@ function wireMenu() {
         return handleRefundClick(meta, shardsEl, refundBtn, () => true, msg => console.info('[meta] alertMock', msg));
     };
     try { console.info('[meta] Refund wiring complete', { btn: !!document.getElementById('btnRefundMeta') }); } catch { }
+    wireAudioSettings();
+    window.addEventListener('voidsurvivor-open-settings', () => {
+        settingsReturnTarget = 'pause';
+        hide('mainMenu'); hide('metaMenu'); hide('instructionsMenu'); hide('statsMenu'); hide('debugTestMenu');
+        show('settingsMenu');
+    });
+}
+
+const MAX_DEBUG_LEVEL = 15;
+let debugFiltersReady = false;
+
+function setupDebugFilters() {
+    const cardSel = document.getElementById('debugFilterCard') as HTMLSelectElement | null;
+    const raritySel = document.getElementById('debugFilterRarity') as HTMLSelectElement | null;
+    const minSel = document.getElementById('debugFilterMinLevel') as HTMLSelectElement | null;
+    const maxSel = document.getElementById('debugFilterMaxLevel') as HTMLSelectElement | null;
+    if (!cardSel || !raritySel || !minSel || !maxSel || debugFiltersReady) return;
+    debugFiltersReady = true;
+    const opt = (v: string, l: string) => { const o = document.createElement('option'); o.value = v; o.textContent = l; return o; };
+    cardSel.appendChild(opt('all', 'All cards'));
+    for (const u of UPGRADES) cardSel.appendChild(opt(u.id, u.name));
+    raritySel.appendChild(opt('all', 'All rarities'));
+    for (const r of RARITIES) raritySel.appendChild(opt(r, r));
+    for (let i = 0; i <= MAX_DEBUG_LEVEL; i++) {
+        minSel.appendChild(opt(String(i), i === 0 ? '0 (fresh)' : String(i)));
+        maxSel.appendChild(opt(String(i), i === 0 ? '0 (fresh)' : String(i)));
+    }
+    for (const s of [cardSel, raritySel, minSel, maxSel]) s.addEventListener('change', renderDebugTestPanel);
+}
+
+function makeDebugPlayer(base: ReturnType<typeof buildStartStats>): Entity {
+    return {
+        id: 0, x: 0, y: 0, vx: 0, vy: 0, radius: 14, kind: 'player',
+        hp: base.hp, maxHp: base.maxHp, damage: base.damage, speed: base.speed,
+        attackSpeed: base.attackSpeed, projectileSpeed: base.projectileSpeed,
+        pickupRange: base.pickupRange, regen: base.regen, xpGain: base.xpGain,
+    };
+}
+
+function renderDebugTestPanel() {
+    setupDebugFilters();
+    const root = document.getElementById('debugPowerCards');
+    if (!root) return;
+    root.innerHTML = '';
+    const base = buildStartStats(meta);
+    const cardFilter = (document.getElementById('debugFilterCard') as HTMLSelectElement | null)?.value ?? 'all';
+    const rarityFilter = (document.getElementById('debugFilterRarity') as HTMLSelectElement | null)?.value ?? 'all';
+    const minLevel = parseInt((document.getElementById('debugFilterMinLevel') as HTMLSelectElement | null)?.value ?? '0', 10) || 0;
+    const maxLevel = Math.max(minLevel, parseInt((document.getElementById('debugFilterMaxLevel') as HTMLSelectElement | null)?.value ?? '0', 10) || 0);
+
+    for (const upgrade of UPGRADES) {
+        if (cardFilter !== 'all' && upgrade.id !== cardFilter) continue;
+        const minOrder = RARITY_ORDER[upgrade.minRarity ?? 'common'];
+        for (const rarity of RARITIES) {
+            if (RARITY_ORDER[rarity] < minOrder) continue;
+            if (rarityFilter !== 'all' && rarity !== rarityFilter) continue;
+            for (let level = minLevel; level <= maxLevel; level++) {
+                addDebugCard(root, upgrade, base, rarity, level);
+            }
+        }
+    }
+}
+
+function addDebugCard(root: HTMLElement, upgrade: (typeof UPGRADES)[number], base: ReturnType<typeof buildStartStats>, rarity: Rarity, level: number) {
+    // Simulate `level` prior picks at this rarity so the preview's "from" value is realistic.
+    const player = makeDebugPlayer(base);
+    const tmpGs = { entities: new Map([[0, player]]), playerId: 0 } as any;
+    for (let i = 0; i < level; i++) upgrade.apply(tmpGs, rarity);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'debug-card-preview';
+    const title = document.createElement('div');
+    title.className = 'debug-card-label';
+    title.textContent = `${upgrade.name} · ${rarity}${level ? ` · L${level}` : ''}`;
+    const card = renderUpgradeCard(upgrade, { player, base, rarity, increments: level });
+    card.classList.add('debugPreviewCard');
+    wrap.appendChild(title);
+    wrap.appendChild(card);
+    root.appendChild(wrap);
+}
+
+function wireAudioSettings() {
+    const muteBtn = document.getElementById('btnMuteAudio') as HTMLButtonElement | null;
+    const volumeRange = document.getElementById('audioVolume') as HTMLInputElement | null;
+    const volumeValue = document.getElementById('audioVolumeValue');
+    if (!muteBtn || !volumeRange || !volumeValue) return;
+    const render = () => {
+        const audio = getAudioSettings();
+        muteBtn.textContent = audio.muted ? 'Unmute' : 'Mute';
+        muteBtn.setAttribute('aria-pressed', audio.muted ? 'true' : 'false');
+        volumeRange.value = String(Math.round(audio.volume * 100));
+        volumeValue.textContent = `${Math.round(audio.volume * 100)}%`;
+    };
+    muteBtn.addEventListener('click', () => {
+        setMuted(!getAudioSettings().muted);
+        render();
+    });
+    volumeRange.addEventListener('input', () => {
+        setMasterVolume(Number(volumeRange.value) / 100);
+        if (getAudioSettings().volume > 0 && getAudioSettings().muted) setMuted(false);
+        render();
+    });
+    render();
 }
 
 // Menu navigation (keyboard + controller)
 let menuButtons: HTMLButtonElement[] = [];
 let menuIndex = 0;
 let lastMenuInput: 'keyboard' | 'gamepad' = 'keyboard';
+let settingsReturnTarget: 'main' | 'pause' = 'main';
 // Meta upgrade grid navigation state
 let metaFocusIndex = 0;
 function getMetaCards(): HTMLElement[] {
@@ -159,11 +295,12 @@ function ensureMetaVisible() {
 }
 function collectVisibleMenuButtons() {
     menuButtons = [];
-    const menus = ['mainMenu', 'metaMenu', 'instructionsMenu', 'settingsMenu', 'statsMenu'];
+    const menus = ['mainMenu', 'metaMenu', 'instructionsMenu', 'settingsMenu', 'statsMenu', 'debugTestMenu'];
     for (const id of menus) {
         const el = document.getElementById(id);
         if (el && el.style.display !== 'none') {
-            const btns = Array.from(el.querySelectorAll('button')) as HTMLButtonElement[];
+            const btns = (Array.from(el.querySelectorAll('button')) as HTMLButtonElement[])
+                .filter(btn => !btn.classList.contains('debugPreviewCard'));
             menuButtons.push(...btns);
         }
     }
@@ -220,8 +357,7 @@ function setupMenuInput() {
     let lastAxisH = 0;
     const poll = () => {
         collectVisibleMenuButtons();
-        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-        const gp = pads && pads[0];
+        const gp = getActivePad();
         if (gp) {
             const buttons = gp.buttons.map(b => b.pressed);
             const axV = gp.axes[1] || 0;
@@ -280,24 +416,27 @@ function bootstrap() {
     window.addEventListener('voidsurvivor-restart', () => {
         const root = document.getElementById('app');
         if (!root) return;
-        // Clear canvas / children if any prior game exists
         if (currentGame) {
-            // crude reset by replacing root contents
-            root.innerHTML = '';
+            currentGame.destroy();
             currentGame = null;
         }
+        root.innerHTML = '';
+        setHudVisible(true);
         const startStats = buildStartStats(meta);
         currentGame = new Game(root, startStats, meta, onRunEnd);
     });
     // Handle quitting mid-run from pause menu
     window.addEventListener('voidsurvivor-quit', () => {
+        if (currentGame) {
+            currentGame.destroy();
+            currentGame = null;
+        }
         const root = document.getElementById('app');
         if (root) root.innerHTML = '';
-        currentGame = null;
         // Show main menu (ensure others hidden)
         hide('metaMenu'); hide('instructionsMenu'); hide('settingsMenu');
         show('mainMenu');
-        const hud = document.querySelector('.hud') as HTMLElement | null; if (hud) hud.style.display = 'none';
+        setHudVisible(false);
     });
 }
 
