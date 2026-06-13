@@ -14,14 +14,13 @@ export function updateHud(gs: GameState) {
     const shardTotal = gs.meta.shards + (gs.runShards || 0);
     const shardEl = document.getElementById('metaShards'); if (shardEl) shardEl.textContent = `Shards: ${shardTotal}`;
     const runShardEl = document.getElementById('runShards'); if (runShardEl) runShardEl.textContent = String(gs.runShards || 0);
-    const totalShardEl = document.getElementById('totalShards'); if (totalShardEl) totalShardEl.textContent = String(shardTotal);
     const levelEl = document.getElementById('level'); if (levelEl) levelEl.textContent = String(gs.level);
     // XP bar
     const pctXp = (gs.xp / gs.xpNeeded) * 100;
     const xpBarDiv = document.getElementById('xpBar') as HTMLElement | null;
     if (xpBarDiv) xpBarDiv.style.width = pctXp + '%';
     const xpBarLabel = document.getElementById('xpBarLabel') as HTMLElement | null;
-    const statsVisible = (gs as any)._statsVisible;
+    const statsVisible = gs.statsVisible;
     if (xpBarLabel) {
         if (statsVisible) {
             xpBarLabel.style.display = 'block';
@@ -47,7 +46,7 @@ export function updateStatsOverlay(gs: GameState) {
     const el = document.getElementById('statsContent');
     const wrap = document.getElementById('statsOverlay');
     if (!el || !wrap) return;
-    if (!(gs as any)._statsVisible) {
+    if (!gs.statsVisible) {
         wrap.classList.remove('stats-visible');
         wrap.classList.add('stats-hidden');
         return;
@@ -67,8 +66,8 @@ export function updateStatsOverlay(gs: GameState) {
     rows.push(['Pickup Range', String(Math.round(p.pickupRange || 0))]);
     rows.push(['Regeneration', `${(p.regen || 0).toFixed(2)}/s`]);
     rows.push(['XP Gain', 'x' + (p.xpGain || 1).toFixed(2)]);
-    const auraLevel = (p as any).auraLevel || 0; if (auraLevel > 0) rows.push(['Magic Aura', String(auraLevel)]);
-    const orbCount = ((p as any).magicOrbCount) || 0; if (orbCount > 0) rows.push(['Magic Orbs', String(orbCount)]);
+    const auraLevel = p.auraLevel || 0; if (auraLevel > 0) rows.push(['Magic Aura', String(auraLevel)]);
+    const orbCount = p.magicOrbCount || 0; if (orbCount > 0) rows.push(['Magic Orbs', String(orbCount)]);
     const grid = rows.map(r => `<div class='stat-label'>${r[0]}</div><div class='stat-val'>${r[1]}</div>`).join('');
     if (!document.getElementById('statsGridStyle')) {
         const st = document.createElement('style'); st.id = 'statsGridStyle';

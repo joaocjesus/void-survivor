@@ -14,7 +14,7 @@ export function computeMovingState(
     }
     if (remainingGrace > 0) {
         const newRemain = Math.max(0, remainingGrace - dt);
-        return { moving: true, remainingGrace: newRemain };
+        return { moving: newRemain > 0, remainingGrace: newRemain };
     }
     return { moving: false, remainingGrace: 0 };
 }

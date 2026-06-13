@@ -3,6 +3,43 @@
     padding: 46px 60px 54px !important
 }
 
+.gameover-panel h2 {
+    margin: 0 0 28px;
+    font-size: 42px;
+    letter-spacing: 1px
+}
+
+.gameover-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 auto;
+    max-width: 560px
+}
+
+.gameover-summary div {
+    background: rgba(255, 255, 255, .045);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 12px;
+    padding: 12px 10px
+}
+
+.gameover-summary span {
+    display: block;
+    font-size: 11px;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    opacity: .58;
+    margin-bottom: 6px
+}
+
+.gameover-summary strong {
+    display: block;
+    font-size: 23px;
+    line-height: 1.1;
+    color: #e4ecf4
+}
+
 .goButtons {
     display: flex;
     gap: 34px;
@@ -41,4 +78,22 @@
     margin-top: 34px;
     font-size: 14px;
     opacity: .55
+}
+
+@media (max-width: 640px) {
+    .gameover-panel {
+        padding: 34px 22px 38px !important
+    }
+
+    .gameover-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+
+    .goButtons {
+        gap: 14px
+    }
+
+    .goButtons button {
+        font-size: 16px
+    }
 }

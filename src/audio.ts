@@ -3,6 +3,56 @@
 
 let ctx: AudioContext | null = null;
 let unlocked = false;
+const AUDIO_STORAGE_KEY = 'void_survivor_audio_v1';
+
+export interface AudioSettings {
+    muted: boolean;
+    volume: number;
+}
+
+let settings: AudioSettings = loadAudioSettings();
+
+function clampVolume(v: number) {
+    if (!Number.isFinite(v)) return 0.75;
+    return Math.max(0, Math.min(1, v));
+}
+
+function loadAudioSettings(): AudioSettings {
+    try {
+        const raw = localStorage.getItem(AUDIO_STORAGE_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            return {
+                muted: Boolean(parsed.muted),
+                volume: clampVolume(Number(parsed.volume)),
+            };
+        }
+    } catch { }
+    return { muted: false, volume: 0.75 };
+}
+
+function saveAudioSettings() {
+    try { localStorage.setItem(AUDIO_STORAGE_KEY, JSON.stringify(settings)); } catch { }
+}
+
+export function getAudioSettings(): AudioSettings {
+    return { ...settings };
+}
+
+export function setMuted(muted: boolean) {
+    settings = { ...settings, muted };
+    saveAudioSettings();
+}
+
+export function setMasterVolume(volume: number) {
+    settings = { ...settings, volume: clampVolume(volume) };
+    saveAudioSettings();
+}
+
+function effectiveVolume(vol: number) {
+    if (settings.muted || settings.volume <= 0) return 0;
+    return vol * settings.volume;
+}
 
 function ensureCtx() {
     if (!ctx) ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -17,6 +67,8 @@ function ensureCtx() {
 interface ToneOpts { freq: number; dur: number; type?: OscillatorType; vol?: number; decay?: number; detune?: number; }
 
 function tone({ freq, dur, type = 'sine', vol = 0.25, decay = 0.002, detune = 0 }: ToneOpts) {
+    vol = effectiveVolume(vol);
+    if (vol <= 0) return;
     if (!ctx) ensureCtx(); if (!ctx) return;
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
@@ -30,6 +82,8 @@ function tone({ freq, dur, type = 'sine', vol = 0.25, decay = 0.002, detune = 0 
 }
 
 function noiseHit(dur = 0.18, vol = 0.22) {
+    vol = effectiveVolume(vol);
+    if (vol <= 0) return;
     if (!ctx) ensureCtx(); if (!ctx) return;
     const bufferSize = 0.15 * (ctx.sampleRate || 44100);
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -51,6 +105,7 @@ function throttle(name: string, gapMs: number) {
 }
 
 export function playSound(id: 'shoot' | 'hit' | 'pickup' | 'level' | 'aura') {
+    if (settings.muted || settings.volume <= 0) return;
     // Best-effort late init if somehow not unlocked yet but a sound is requested after interaction
     if (!unlocked) { ensureCtx(); }
     if (!ctx) return;
