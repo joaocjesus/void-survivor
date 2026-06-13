@@ -138,6 +138,10 @@ body.controller-input .menu-panel button.debug:not(.focused):hover {
     font-weight: 600
 }
 
+.settings-label {
+    font-weight: 600
+}
+
 .settings-row output {
     color: #dfe9f1;
     opacity: .82
@@ -145,6 +149,41 @@ body.controller-input .menu-panel button.debug:not(.focused):hover {
 
 #audioVolume {
     width: 100%
+}
+
+.controller-badge {
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(90, 169, 255, .14);
+    border: 1px solid rgba(90, 169, 255, .38);
+    color: #bde2ff;
+    font-size: 12px;
+    font-weight: 600
+}
+
+.controller-option {
+    padding: 12px;
+    border: 1px solid rgba(90, 169, 255, .35);
+    border-radius: 8px;
+    background: rgba(90, 169, 255, .08)
+}
+
+.controller-option-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f3f7fb;
+    margin-bottom: 5px
+}
+
+.controller-option-note,
+.settings-note {
+    font-size: 12px;
+    line-height: 1.45;
+    color: #9ea6ad
+}
+
+.settings-note {
+    margin-top: 8px
 }
 
 .debug-test-panel {
