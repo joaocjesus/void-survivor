@@ -1,69 +1,51 @@
-import { UpgradeDef, OfferedUpgrade, GameState } from './types';
+import { UpgradeDef, OfferedUpgrade, GameState, Entity, PlayerStartStats } from './types';
 import { POWERS_VALUES } from './constants/balance';
 import { effRarityWeight, RARITIES, rarityValue, type Rarity } from './constants/rarity';
 
-// In-run upgrade definitions. Pure data + apply lambdas only; no DOM or PIXI.
-// Per-pick magnitudes come from UPGRADE_RARITY_VALUES (see constants/rarity.ts);
-// each apply reads its value via rarityValue(id, rarity).
+// Mutator receives the player, this pick's rarity magnitude `v` (from UPGRADE_RARITY_VALUES),
+// and the run's base stats. Builder wires up the player lookup + value lookup so each card
+// only declares its actual effect.
+type Mut = (p: Entity, v: number, base: PlayerStartStats) => void;
+const card = (id: string, name: string, description: string, mut: Mut, extra: Partial<UpgradeDef> = {}): UpgradeDef => ({
+    id, name, description, ...extra,
+    apply: (gs, r) => mut(gs.entities.get(gs.playerId)!, rarityValue(id, r), gs.startStats),
+});
+
+const ownsOrbs = (gs: GameState) => (gs.entities.get(gs.playerId)?.magicOrbCount ?? 0) > 0;
+
+// In-run upgrade definitions. Per-pick magnitudes come from UPGRADE_RARITY_VALUES
+// (constants/rarity.ts). Percent stats add `v`% of the base value (linear stacking).
 export const UPGRADES: UpgradeDef[] = [
-    {
-        id: 'damage', name: 'Damage', description: 'Increase projectile damage',
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.damage = (p.damage || 0) + rarityValue('damage', r); },
-    },
-    {
-        id: 'attackSpeed', name: 'Attack Speed', description: 'Fire faster',
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.attackSpeed = (p.attackSpeed || 1) + gs.startStats.attackSpeed * rarityValue('attackSpeed', r) / 100; },
-    },
-    {
-        id: 'moveSpeed', name: 'Move Speed', description: 'Move faster',
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.speed = (p.speed || gs.startStats.speed) + gs.startStats.speed * rarityValue('moveSpeed', r) / 100; },
-    },
-    {
-        id: 'projSpeed', name: 'Projectile Speed', description: 'Projectiles travel faster',
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.projectileSpeed = (p.projectileSpeed || gs.startStats.projectileSpeed) + gs.startStats.projectileSpeed * rarityValue('projSpeed', r) / 100; },
-    },
-    {
-        id: 'projLifeSpan', name: 'Projectile Lifespan', description: 'Projectiles last longer (reach farther)',
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.projLifeSpanMult = (p.projLifeSpanMult ?? 1) + rarityValue('projLifeSpan', r) / 100; },
-    },
-    {
-        id: 'hp', name: 'Max Health', description: 'Increase max HP',
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; const add = rarityValue('hp', r); p.maxHp = (p.maxHp || 100) + add; p.hp = (p.hp || 0) + add; },
-    },
-    {
-        id: 'pickupRange', name: 'Magnet', description: 'Increase pickup range',
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.pickupRange = (p.pickupRange || gs.startStats.pickupRange) + gs.startStats.pickupRange * rarityValue('pickupRange', r) / 100; },
-    },
-    {
-        id: 'regen', name: 'Regeneration', description: 'Regenerate HP over time',
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.regen = (p.regen || 0) + rarityValue('regen', r); },
-    },
-    {
-        id: 'multiShot', name: 'Multishot', description: 'Fire additional projectiles', minRarity: 'rare',
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.multishot = (p.multishot || 0) + rarityValue('multiShot', r); },
-    },
-    {
-        id: 'auraRadius', name: 'Magic Aura', description: 'Unlock / grow a damaging aura', isPower: true, minRarity: 'uncommon',
-        apply: (gs, r) => {
-            const p = gs.entities.get(gs.playerId)!;
-            p.auraLevel = (p.auraLevel || 0) + 1;
-            p.auraRadiusPct = (p.auraRadiusPct ?? 100) + rarityValue('auraRadius', r);
-        },
-    },
-    {
-        id: 'magicOrbs', name: 'Magic Orbs', description: 'Unlock / add orbiting orbs', isPower: true, minRarity: 'uncommon',
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.magicOrbCount = (p.magicOrbCount ?? 0) + rarityValue('magicOrbs', r); },
-    },
-    {
-        id: 'magicOrbDamage', name: 'Magic Orb Damage', description: 'Increase orb damage', isPower: true,
-        requires: gs => (gs.entities.get(gs.playerId)?.magicOrbCount ?? 0) > 0,
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.magicOrbDamage = (p.magicOrbDamage ?? POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE) + rarityValue('magicOrbDamage', r); },
-    },
-    {
-        id: 'magicOrbSpeed', name: 'Orb Speed', description: 'Orbs rotate faster', isPower: true,
-        requires: gs => (gs.entities.get(gs.playerId)?.magicOrbCount ?? 0) > 0,
-        apply: (gs, r) => { const p = gs.entities.get(gs.playerId)!; p.orbSpeedMult = (p.orbSpeedMult ?? 1) + rarityValue('magicOrbSpeed', r) / 100; },
-    },
+    card('damage', 'Damage', 'Increase projectile damage',
+        (p, v) => { p.damage = (p.damage || 0) + v; }),
+    card('attackSpeed', 'Attack Speed', 'Fire faster',
+        (p, v, b) => { p.attackSpeed = (p.attackSpeed || 1) + b.attackSpeed * v / 100; }),
+    card('moveSpeed', 'Move Speed', 'Move faster',
+        (p, v, b) => { p.speed = (p.speed || b.speed) + b.speed * v / 100; }),
+    card('projSpeed', 'Projectile Speed', 'Projectiles travel faster',
+        (p, v, b) => { p.projectileSpeed = (p.projectileSpeed || b.projectileSpeed) + b.projectileSpeed * v / 100; }),
+    card('projLifeSpan', 'Projectile Lifespan', 'Projectiles last longer (reach farther)',
+        (p, v) => { p.projLifeSpanMult = (p.projLifeSpanMult ?? 1) + v / 100; }),
+    card('hp', 'Max Health', 'Increase max HP',
+        (p, v) => { p.maxHp = (p.maxHp || 100) + v; p.hp = (p.hp || 0) + v; }),
+    card('pickupRange', 'Magnet', 'Increase pickup range',
+        (p, v, b) => { p.pickupRange = (p.pickupRange || b.pickupRange) + b.pickupRange * v / 100; }),
+    card('regen', 'Regeneration', 'Regenerate HP over time',
+        (p, v) => { p.regen = (p.regen || 0) + v; }),
+    card('multiShot', 'Multishot', 'Fire additional projectiles',
+        (p, v) => { p.multishot = (p.multishot || 0) + v; }),
+    card('auraRadius', 'Magic Aura', 'Unlock / grow a damaging aura',
+        (p, v) => { p.auraLevel = (p.auraLevel || 0) + 1; p.auraRadiusPct = (p.auraRadiusPct ?? 100) + v; },
+        { isPower: true }),
+    card('magicOrbs', 'Magic Orbs', 'Unlock / add orbiting orbs',
+        (p, v) => { p.magicOrbCount = (p.magicOrbCount ?? 0) + v; },
+        { isPower: true }),
+    card('magicOrbDamage', 'Magic Orb Damage', 'Increase orb damage',
+        (p, v) => { p.magicOrbDamage = (p.magicOrbDamage ?? POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE) + v; },
+        { isPower: true, requires: ownsOrbs }),
+    card('magicOrbSpeed', 'Orb Speed', 'Orbs rotate faster',
+        (p, v) => { p.orbSpeedMult = (p.orbSpeedMult ?? 1) + v / 100; },
+        { isPower: true, requires: ownsOrbs }),
 ];
 
 export function applyUpgradeChoice(gs: GameState, upgrade: UpgradeDef, rarity: Rarity) {
@@ -72,16 +54,15 @@ export function applyUpgradeChoice(gs: GameState, upgrade: UpgradeDef, rarity: R
 }
 
 // Offer N distinct upgrades, each tagged with an independently-rolled rarity.
-// Builds a flat weighted list of (card, rarity) combos honoring requires/minRarity
-// /per-card overrides, then samples distinct cards without replacement.
+// Builds a flat weighted list of (card, rarity) combos honoring requires, minRarity
+// (from the rarity config), and per-card overrides, then samples distinct cards.
 export function pickUpgradeOffers(gs: GameState, count: number): OfferedUpgrade[] {
     const pool = gs.upgradePool.filter(u => !u.requires || u.requires(gs));
     type Combo = { def: UpgradeDef; rarity: Rarity; w: number };
     const combos: Combo[] = [];
     for (const def of pool) {
-        const minR = def.minRarity ?? 'common';
         for (const r of RARITIES) {
-            const w = effRarityWeight(def.id, minR, r);
+            const w = effRarityWeight(def.id, r);
             if (w > 0) combos.push({ def, rarity: r, w });
         }
     }

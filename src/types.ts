@@ -45,7 +45,6 @@ export interface UpgradeDef {
     name: string;
     description: string;
     maxLevel?: number;
-    minRarity?: Rarity;                 // lowest tier this card can drop at (default 'common')
     isPower?: boolean;                  // active ability (extra "power" styling on the card)
     requires?: (gs: GameState) => boolean; // gate: only offered when this returns true
     apply: (gs: GameState, rarity: Rarity) => void;

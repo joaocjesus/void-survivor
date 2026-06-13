@@ -52,11 +52,11 @@ describe('pickUpgradeOffers', () => {
 
 describe('rarity gating (effRarityWeight)', () => {
     it('disables tiers below a card minRarity', () => {
-        expect(effRarityWeight('multiShot', 'rare', 'common')).toBe(0);
-        expect(effRarityWeight('multiShot', 'rare', 'uncommon')).toBe(0);
-        expect(effRarityWeight('multiShot', 'rare', 'rare')).toBeGreaterThan(0);
-        expect(effRarityWeight('magicOrbs', 'uncommon', 'common')).toBe(0);
-        expect(effRarityWeight('magicOrbs', 'uncommon', 'uncommon')).toBeGreaterThan(0);
+        expect(effRarityWeight('multiShot', 'common')).toBe(0);
+        expect(effRarityWeight('multiShot', 'uncommon')).toBe(0);
+        expect(effRarityWeight('multiShot', 'rare')).toBeGreaterThan(0);
+        expect(effRarityWeight('magicOrbs', 'common')).toBe(0);
+        expect(effRarityWeight('magicOrbs', 'uncommon')).toBeGreaterThan(0);
     });
 
     it('respects card minRarity in actual offers', () => {
@@ -73,7 +73,7 @@ describe('applyUpgradeChoice', () => {
         const gs = makeState(() => 0.1);
         const p = gs.entities.get(0)!;
         const before = p.damage!;
-        const legendaryDmg = UPGRADE_RARITY_VALUES.damage.legendary!;
+        const legendaryDmg = UPGRADE_RARITY_VALUES.damage.values.legendary!;
         applyUpgradeChoice(gs, UPGRADES.find(u => u.id === 'damage')!, 'legendary');
         expect(p.damage).toBe(before + legendaryDmg);
         expect(gs.upgradeCounts['damage']).toBe(1);

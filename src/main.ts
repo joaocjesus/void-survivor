@@ -6,7 +6,7 @@ import { confirmAction } from './ui/confirm';
 import { getAudioSettings, setMasterVolume, setMuted } from './audio';
 import { UPGRADES } from './upgrades';
 import { renderUpgradeCard } from './ui/upgradeCard';
-import { RARITIES, RARITY_ORDER, type Rarity } from './constants/rarity';
+import { RARITIES, RARITY_ORDER, cardMinRarity, type Rarity } from './constants/rarity';
 import { getActivePad } from './game/input';
 import type { Entity } from './types';
 
@@ -209,7 +209,7 @@ function renderDebugTestPanel() {
 
     for (const upgrade of UPGRADES) {
         if (cardFilter !== 'all' && upgrade.id !== cardFilter) continue;
-        const minOrder = RARITY_ORDER[upgrade.minRarity ?? 'common'];
+        const minOrder = RARITY_ORDER[cardMinRarity(upgrade.id)];
         for (const rarity of RARITIES) {
             if (RARITY_ORDER[rarity] < minOrder) continue;
             if (rarityFilter !== 'all' && rarity !== rarityFilter) continue;
