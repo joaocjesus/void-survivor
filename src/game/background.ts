@@ -6,11 +6,15 @@ const gridSquareSize = 512;
 
 export interface DarkTextureOptions {
     size?: number; cells?: number; baseColor?: number; variance?: number; contrast?: number; vignette?: boolean; octaves?: number; persistence?: number; lowFreqWeight?: number; brightness?: number;
+    // Bump/emboss mode: treat the noise as a heightfield and shade its slopes by a light
+    // direction, producing a raised 3D-relief grey texture (flats -> mid grey, slopes -> light/dark).
+    relief?: boolean; reliefStrength?: number; lightAngle?: number;
 }
 
 // Procedurally generate a seamless dark noise texture for the background.
 // Approach: multi-octave value noise on a coarse lattice bilinearly interpolated to a tile, with edge wrapping.
-export function makeDarkTexture(app: PIXI.Application, opts?: DarkTextureOptions): PIXI.Texture {
+// Renders into (and returns) an HTMLCanvasElement so callers can derive a PIXI texture or a data URL.
+export function makeDarkTextureCanvas(opts?: DarkTextureOptions): HTMLCanvasElement {
     const size = opts?.size ?? gridSquareSize;
     const baseCells = opts?.cells ?? 24;
     const baseColor = opts?.baseColor ?? 0x101418;
@@ -62,6 +66,8 @@ export function makeDarkTexture(app: PIXI.Application, opts?: DarkTextureOptions
         return v0 + (v1 - v0) * ty;
     };
 
+    // Pass 1: build the height field (octave noise, contrast, optional vignette).
+    const field = new Float32Array(size * size);
     for (let py = 0; py < size; py++) {
         for (let px = 0; px < size; px++) {
             let amp = 1, total = 0, norm = 0;
@@ -76,22 +82,51 @@ export function makeDarkTexture(app: PIXI.Application, opts?: DarkTextureOptions
                 const nx = (px / size) * 2 - 1;
                 const ny = (py / size) * 2 - 1;
                 const d = Math.min(1, Math.sqrt(nx * nx + ny * ny));
-                const vig = 1 - d * 0.32;
-                v *= vig;
+                v *= 1 - d * 0.32;
             }
-            const delta = (v - 0.5) * 2 * variance;
-            let r = br + delta; let g = bgc + delta; let b = bb + delta;
-            r = Math.max(0, Math.min(255, r * brightness));
-            g = Math.max(0, Math.min(255, g * brightness));
-            b = Math.max(0, Math.min(255, b * brightness));
+            field[py * size + px] = v;
+        }
+    }
+
+    // Pass 2: emit pixels — either flat color mapping or lit relief (bump map).
+    const relief = opts?.relief ?? false;
+    const reliefStrength = opts?.reliefStrength ?? 7;
+    const lightAngle = opts?.lightAngle ?? (-Math.PI * 0.75); // light from top-left
+    const lx = Math.cos(lightAngle), ly = Math.sin(lightAngle);
+    const wrap = (i: number) => (i + size) % size;
+    for (let py = 0; py < size; py++) {
+        for (let px = 0; px < size; px++) {
             const idx = (py * size + px) * 4;
+            if (relief) {
+                // slope of the heightfield, lit by the light direction -> embossed grey
+                const gx = field[py * size + wrap(px + 1)] - field[py * size + wrap(px - 1)];
+                const gy = field[wrap(py + 1) * size + px] - field[wrap(py - 1) * size + px];
+                let s = 0.5 + (gx * lx + gy * ly) * reliefStrength;
+                s = Math.max(0, Math.min(1, s));
+                const c = Math.round(s * 255 * brightness);
+                img.data[idx] = c; img.data[idx + 1] = c; img.data[idx + 2] = c; img.data[idx + 3] = 255;
+                continue;
+            }
+            const delta = (field[py * size + px] - 0.5) * 2 * variance;
+            const r = Math.max(0, Math.min(255, (br + delta) * brightness));
+            const g = Math.max(0, Math.min(255, (bgc + delta) * brightness));
+            const b = Math.max(0, Math.min(255, (bb + delta) * brightness));
             img.data[idx] = r; img.data[idx + 1] = g; img.data[idx + 2] = b; img.data[idx + 3] = 255;
         }
     }
     ctx.putImageData(img, 0, 0);
-    const tex = PIXI.Texture.from(canvas);
+    return canvas;
+}
+
+export function makeDarkTexture(app: PIXI.Application, opts?: DarkTextureOptions): PIXI.Texture {
+    const tex = PIXI.Texture.from(makeDarkTextureCanvas(opts));
     tex.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR; // smooth scaling
     return tex;
+}
+
+// Same procedural texture as a PNG data URL, for use as a CSS background (e.g. upgrade cards).
+export function darkTextureDataURL(opts?: DarkTextureOptions): string {
+    return makeDarkTextureCanvas(opts).toDataURL('image/png');
 }
 
 export function createBackground(app: PIXI.Application) {
