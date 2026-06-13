@@ -1,23 +1,24 @@
 import * as PIXI from 'pixi.js';
-import { Entity, GameState, UpgradeDef, PlayerStartStats, MetaSave } from './types';
+import { Entity, GameState, OfferedUpgrade, PlayerStartStats, MetaSave } from './types';
 import { playSound } from './audio';
-import { UPGRADES, pickRandomUpgrades, maybeAddDependentUpgrades } from './upgrades';
+import { UPGRADES, pickUpgradeOffers, applyUpgradeChoice } from './upgrades';
 import { spawnMob, spawnElite, spawnXp, fireProjectile, spawnParticle, spawnHitBurst, rollShardDrop, spawnShard } from './spawns';
 import { randomRng } from './rng';
-import { clamp, distSq } from './math';
+import { distSq } from './math';
 import { createBackground } from './game/background';
 import { updateHud, updateStatsOverlay } from './game/hud';
 import { createInputState, setupKeyboard, setupGamepad } from './game/input';
-import { FIRE_INTERVAL_BASE, POWERS_VALUES, UPGRADE_VALUES, POWERS_UPGRADE_VALUES } from './constants/balance';
-import { nextXpNeeded, spawnIntervalAt, auraRadiusAt, auraDpsAt } from './balanceUtils';
+import { FIRE_INTERVAL_BASE, POWERS_VALUES } from './constants/balance';
+import { nextXpNeeded, spawnIntervalAt, auraDpsAt } from './balanceUtils';
 import { createPlayerSpriteFromGrid, PlayerSprite } from './sprites/grid';
 import { didMove, MOVE_ANIM_SPEED } from './movement';
+import { renderUpgradeCard } from './ui/upgradeCard';
 
 
 export class Game {
     app!: PIXI.Application;
     gs!: GameState;
-    sprites: Map<number, PIXI.Container | PIXI.Graphics> = new Map();
+    sprites: Map<number, PIXI.Container> = new Map();
     input = createInputState();
     upgradeModal = document.getElementById('upgradeModal') as HTMLDivElement | null;
     upgradeChoicesEl = document.getElementById('upgradeChoices') as HTMLDivElement | null;
@@ -31,6 +32,10 @@ export class Game {
     private lastDir: 'left' | 'right' | 'up' | 'down' = 'right';
     // Simplified animation state
     private wasMoving: boolean = false;
+    private cleanupFns: Array<() => void> = [];
+    private destroyed = false;
+    private gameOverKeyCleanup?: () => void;
+    private pauseKeyCleanup?: () => void;
 
     private endCb: (result: { time: number; kills: number; shards: number; }) => void;
     constructor(parent: HTMLElement, startStats: PlayerStartStats, meta: MetaSave, endCb: (result: { time: number; kills: number; shards: number; }) => void) {
@@ -41,6 +46,10 @@ export class Game {
     private async init(parent: HTMLElement, startStats: PlayerStartStats, meta: MetaSave) {
         this.app = new PIXI.Application();
         await this.app.init({ resizeTo: parent, background: '#121416', antialias: true });
+        if (this.destroyed) {
+            try { this.app.destroy(true); } catch { }
+            return;
+        }
         parent.appendChild(this.app.canvas);
         // Attach static background
         createBackground(this.app);
@@ -58,8 +67,9 @@ export class Game {
             kills: 0,
             rng: randomRng(12345),
             paused: false,
-            // Start without magicOrbDmg; it unlocks after first magic orb is obtained
-            upgradePool: [...UPGRADES.filter(u => u.id !== 'magicOrbDmg')],
+            // Full pool; per-card `requires` gates (e.g. orb upgrades need orbs first).
+            upgradePool: [...UPGRADES],
+            upgradeCounts: {},
             offeredUpgrades: [],
             runActive: true,
             startStats: startStats,
@@ -88,9 +98,9 @@ export class Game {
         const aura = new PIXI.Graphics();
         aura.alpha = 0.18;
         playerG.addChild(aura);
-        (player as any).auraG = aura;
-        (player as any).orbitG = new PIXI.Container();
-        playerG.addChild((player as any).orbitG);
+        player.auraG = aura;
+        player.orbitG = new PIXI.Container();
+        playerG.addChild(player.orbitG);
         playerG.x = player.x; playerG.y = player.y;
         this.app.stage.addChild(playerG);
         this.sprites.set(player.id, playerG);
@@ -99,6 +109,7 @@ export class Game {
         // Place an image at /assets/player-sprites.png (grid). Adjust cols/rows below to match your sheet.
         try {
             const tex = await PIXI.Assets.load('/assets/player-sprites.png');
+            if (this.destroyed) return;
             // New sheet: 4 columns x 6 rows, only right-facing; 21 frames total (last row partial)
             const sprite = createPlayerSpriteFromGrid(tex, { cols: 4, rows: 6, cycleRows: [0, 1, 2, 3, 4, 5], frameCount: 21 });
             // Use sprite's native pixel size (no downscale to hit circle)
@@ -114,170 +125,58 @@ export class Game {
             // console.warn('Player sprite not found, using vector fallback.', err);
         }
 
+        if (this.destroyed) {
+            return;
+        }
         this.setupInput();
         this.setupUpgradeShortcuts();
         this.app.ticker.add(this.update);
     }
 
     setupUpgradeShortcuts() {
-        window.addEventListener('keydown', e => {
+        const keydown = (e: KeyboardEvent) => {
             if (!this.gs?.paused || !this.gs.offeredUpgrades.length) return;
             const idx = parseInt(e.key, 10) - 1;
             if (idx >= 0 && idx < this.gs.offeredUpgrades.length) {
                 this.chooseUpgrade(this.gs.offeredUpgrades[idx]);
             }
-        });
+        };
+        window.addEventListener('keydown', keydown);
+        this.cleanupFns.push(() => window.removeEventListener('keydown', keydown));
+    }
+
+    private ensureUpgradeModalShell(): boolean {
+        this.upgradeModal = document.getElementById('upgradeModal') as HTMLDivElement | null;
+        if (!this.upgradeModal) return false;
+        let choices = this.upgradeModal.querySelector('#upgradeChoices') as HTMLDivElement | null;
+        if (!choices) {
+            this.upgradeModal.innerHTML = `<div class="panel">
+                <h2>Choose an Upgrade</h2>
+                <div class="upgrades" id="upgradeChoices"></div>
+                <div class="footerHint">Press 1-3, Enter, A, or click</div>
+            </div>`;
+            choices = this.upgradeModal.querySelector('#upgradeChoices') as HTMLDivElement | null;
+        }
+        this.upgradeChoicesEl = choices;
+        return !!this.upgradeChoicesEl;
     }
 
     showUpgradeChoices() {
-        if (!this.upgradeModal || !this.upgradeChoicesEl) return;
+        if (!this.ensureUpgradeModalShell() || !this.upgradeModal || !this.upgradeChoicesEl) return;
         this.gs.paused = true;
         this.upgradeChoicesEl.innerHTML = '';
-        const choices = this.pickRandomUpgrades(3);
+        const choices = this.pickUpgradeOffers(3);
         this.gs.offeredUpgrades = choices;
         this.upgradeSelIndex = 0; // reset selection
-        const p = this.gs.entities.get(this.gs.playerId)!;
-        const base = this.gs.startStats;
-        const powerIds = new Set(['aura', 'magicOrb']);
-        const calcLevel = (id: string): number => {
-            switch (id) {
-                case 'dmg': return Math.max(0, Math.floor(((p.damage || base.damage) - base.damage) / 5));
-                case 'aspd': return Math.max(0, Math.round(Math.log((p.attackSpeed || base.attackSpeed) / base.attackSpeed) / Math.log(1.25)));
-                case 'speed': return Math.max(0, Math.round(Math.log((p.speed || base.speed) / base.speed) / Math.log(1.1)));
-                case 'projspd': return Math.max(0, Math.round(Math.log((p.projectileSpeed || base.projectileSpeed) / base.projectileSpeed) / Math.log(1.2)));
-                case 'hp': return Math.max(0, Math.floor(((p.maxHp || base.maxHp) - base.maxHp) / 25));
-                case 'pickup': return Math.max(0, Math.round(Math.log((p.pickupRange || base.pickupRange) / base.pickupRange) / Math.log(1.5)));
-                case 'regen': return Math.max(0, Math.round(((p.regen || 0) - (base.regen || 0)) / 0.5));
-                case 'aura': return ((p as any).auraLevel || 0); // levels directly tracked
-                case 'magicOrb': return ((p as any).magicOrbCount ?? (p as any).orbitCount) || 0;
-                case 'magicOrbDmg': {
-                    const current = ((p as any).magicOrbDamage ?? (p as any).orbitDamage ?? 8); // base 8
-                    return Math.max(0, Math.floor((current - 8) / 5));
-                }
-                default: return 0;
-            }
-        };
-        for (const u of choices) {
-            const div = document.createElement('button');
-            div.className = 'upgrade';
-            const increments = calcLevel(u.id); // number of times upgrade already taken (0 = none)
-            const lvl = powerIds.has(u.id) ? increments : increments + 1; // for non-power: base is Level 1
-            const nextLevel = lvl + 1;
-            // Power handling (aura / magicOrb)
-            if (powerIds.has(u.id)) {
-                div.classList.add('power');
-                if (increments === 0) {
-                    div.innerHTML = `<h3>${u.name}</h3><div class='body'><div class='bodyText'>Unlock ${u.name}</div></div>`;
-                } else {
-                    // Build comparison grid
-                    // Re-use description but strip unlock prefix
-                    const nextDesc = u.description.replace(/^Unlock \/\s*/i, '');
-                    let statLabelCurrent = '';
-                    let statLabelNext = '';
-                    if (u.id === 'aura') {
-                        const incPct = POWERS_UPGRADE_VALUES.AURA_RADIUS_INCREMENT;
-                        const curBonus = (increments * incPct).toFixed(0);
-                        const nextBonus = ((increments + 1) * incPct).toFixed(0);
-                        statLabelCurrent = `Aura Size: +${curBonus}%`;
-                        statLabelNext = `Aura Size: +${nextBonus}% (+${incPct.toFixed(0)}%)`;
-                    } else if (u.id === 'magicOrb') {
-                        statLabelCurrent = `Orbs: ${lvl}`;
-                        statLabelNext = `Orbs: ${nextLevel} (+1)`;
-                    }
-                    // Highlight increment part in next label
-                    statLabelNext = statLabelNext.replace(/\(\+[0-9.]+%?\)/g, m => `<span class='incPct'>${m}</span>`);
-                    div.innerHTML = `<h3>${u.name}</h3>
-                        <div class='body'><div class='power-compare'>
-                            <div class='col current'>
-                                <div class='lvl'>Level ${lvl}</div>
-                                <div class='stat'>${statLabelCurrent}</div>
-                            </div>
-                            <div class='arrowDown'><div class='arrowIcon'>&darr;</div></div>
-                            <div class='col next'>
-                                <div class='lvl'>Level ${nextLevel}</div>
-                                <div class='stat'>${statLabelNext}</div>
-                            </div>
-                        </div></div>`;
-                }
-            } else {
-                // Non-power upgrades: comparison view (current vs next), base stats are Level 1 values
-                const currentValueLine = (id: string, inc: number): string => {
-                    switch (id) {
-                        case 'dmg': return `Damage: ${(base.damage + inc * UPGRADE_VALUES.DAMAGE_PLUS).toFixed(0)}`;
-                        case 'aspd': return `Attack Speed: ${(base.attackSpeed * Math.pow(UPGRADE_VALUES.ATTACK_SPEED_MULT, inc)).toFixed(2)}`;
-                        case 'speed': return `Move Speed: ${(base.speed * Math.pow(UPGRADE_VALUES.MOVE_SPEED_MULT, inc)).toFixed(0)}`;
-                        case 'projspd': return `Projectile Speed: ${(base.projectileSpeed * Math.pow(UPGRADE_VALUES.PROJECTILE_SPEED_MULT, inc)).toFixed(0)}`;
-                        case 'hp': return `Max HP: ${(base.maxHp + inc * UPGRADE_VALUES.MAX_HP_PLUS).toFixed(0)}`;
-                        case 'pickup': return `Pickup Range: ${(base.pickupRange * Math.pow(UPGRADE_VALUES.PICKUP_RANGE_MULT, inc)).toFixed(0)}`;
-                        case 'regen': return `Regeneration: ${(base.regen + inc * UPGRADE_VALUES.REGEN_PLUS).toFixed(1)}`;
-                        case 'magicOrbDmg': return `Orb Damage: ${(POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE + inc * POWERS_UPGRADE_VALUES.MAGIC_ORB_DAMAGE_INCREMENT).toFixed(0)}`;
-                        default: return '';
-                    }
-                };
-                const nextValueLine = (id: string, inc: number): string => {
-                    switch (id) {
-                        case 'dmg': {
-                            const cur = base.damage + inc * UPGRADE_VALUES.DAMAGE_PLUS;
-                            const nxt = cur + UPGRADE_VALUES.DAMAGE_PLUS;
-                            return `Damage: ${nxt} (+${UPGRADE_VALUES.DAMAGE_PLUS})`;
-                        }
-                        case 'aspd': {
-                            const cur = base.attackSpeed * Math.pow(UPGRADE_VALUES.ATTACK_SPEED_MULT, inc);
-                            const nxt = cur * UPGRADE_VALUES.ATTACK_SPEED_MULT;
-                            return `Attack Speed: ${nxt.toFixed(2)} (+${((nxt / base.attackSpeed - 1) * 100).toFixed(0)}%)`;
-                        }
-                        case 'speed': {
-                            const curMult = Math.pow(UPGRADE_VALUES.MOVE_SPEED_MULT, inc);
-                            const nxtMult = curMult * UPGRADE_VALUES.MOVE_SPEED_MULT;
-                            const nxtVal = base.speed * nxtMult;
-                            return `Move Speed: ${nxtVal.toFixed(0)} (+${((UPGRADE_VALUES.MOVE_SPEED_MULT - 1) * 100).toFixed(0)}%)`;
-                        }
-                        case 'projspd': {
-                            const curMult = Math.pow(UPGRADE_VALUES.PROJECTILE_SPEED_MULT, inc);
-                            const nxtMult = curMult * UPGRADE_VALUES.PROJECTILE_SPEED_MULT;
-                            const nxtVal = base.projectileSpeed * nxtMult;
-                            return `Projectile Speed: ${nxtVal.toFixed(0)} (+${((nxtMult - 1) * 100).toFixed(0)}%)`;
-                        }
-                        case 'hp': {
-                            const nxt = base.maxHp + (inc + 1) * UPGRADE_VALUES.MAX_HP_PLUS;
-                            return `Max HP: ${nxt} (+${UPGRADE_VALUES.MAX_HP_PLUS})`;
-                        }
-                        case 'pickup': {
-                            const curMult = Math.pow(UPGRADE_VALUES.PICKUP_RANGE_MULT, inc);
-                            const nxtMult = curMult * UPGRADE_VALUES.PICKUP_RANGE_MULT;
-                            const nxtVal = base.pickupRange * nxtMult;
-                            return `Pickup Range: ${nxtVal.toFixed(0)} (+${((UPGRADE_VALUES.PICKUP_RANGE_MULT - 1) * 100).toFixed(0)}%)`;
-                        }
-                        case 'regen': {
-                            const nxt = base.regen + (inc + 1) * UPGRADE_VALUES.REGEN_PLUS;
-                            return `Regeneration: ${nxt.toFixed(1)} (+${UPGRADE_VALUES.REGEN_PLUS})`;
-                        }
-                        case 'magicOrbDmg': {
-                            const nxt = POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE + (inc + 1) * POWERS_UPGRADE_VALUES.MAGIC_ORB_DAMAGE_INCREMENT;
-                            return `Orb Damage: ${nxt} (+${POWERS_UPGRADE_VALUES.MAGIC_ORB_DAMAGE_INCREMENT})`;
-                        }
-                        default: return '';
-                    }
-                };
-                const currentStat = currentValueLine(u.id, increments);
-                let nextStat = nextValueLine(u.id, increments);
-                // Highlight increases (numeric or percentage) in green including parentheses
-                nextStat = nextStat.replace(/\(\+[0-9.]+%?\)/g, m => `<span class='incPct'>${m}</span>`);
-                const extraNote = u.id === 'hp' ? `<div class='note' style='opacity:.6;font-size:11px;margin-top:6px;'>On upgrade: Heal ${UPGRADE_VALUES.MAX_HP_HEAL}</div>` : '';
-                div.innerHTML = `<h3>${u.name}</h3>
-                    <div class='body'><div class='power-compare'>
-                        <div class='col current'>
-                            <div class='lvl'>Level ${lvl}</div>
-                            <div class='stat'>${currentStat}</div>
-                        </div>
-                        <div class='arrowDown'><div class='arrowIcon'>&darr;</div></div>
-                        <div class='col next'>
-                            <div class='lvl'>Level ${nextLevel}</div>
-                            <div class='stat'>${nextStat}</div>
-                        </div>
-                    </div>${extraNote}</div>`;
-            }
-            div.onclick = () => this.chooseUpgrade(u);
+        const player = this.gs.entities.get(this.gs.playerId)!;
+        for (const offer of choices) {
+            const div = renderUpgradeCard(offer.def, {
+                player,
+                base: this.gs.startStats,
+                rarity: offer.rarity,
+                increments: this.gs.upgradeCounts[offer.def.id] || 0,
+                onChoose: () => this.chooseUpgrade(offer),
+            });
             this.upgradeChoicesEl.appendChild(div);
         }
         // Inject style for increment percentage if not present
@@ -298,35 +197,33 @@ export class Game {
         this.gs.paused = false;
     }
 
-    pickRandomUpgrades(count: number): UpgradeDef[] { return pickRandomUpgrades(this.gs, count); }
+    pickUpgradeOffers(count: number): OfferedUpgrade[] { return pickUpgradeOffers(this.gs, count); }
 
-    chooseUpgrade(u: UpgradeDef) {
-        const player = this.gs.entities.get(this.gs.playerId)!;
-        const beforeOrbit = ((player as any).magicOrbCount) || 0;
-        u.apply(this.gs);
-        // allow duplicates for now by pushing back
-        this.gs.upgradePool.push(u);
-        maybeAddDependentUpgrades(this.gs, u.id);
+    chooseUpgrade(offer: OfferedUpgrade) {
+        applyUpgradeChoice(this.gs, offer.def, offer.rarity);
         this.hideUpgradeChoices();
+        if (this.gs.xp >= this.gs.xpNeeded) {
+            this.levelUp();
+        }
     }
 
     setupInput() {
         const lastInputRef = { v: this.lastInputDevice };
-        setupKeyboard(this.input, this.gs, {
+        this.cleanupFns.push(setupKeyboard(this.input, this.gs, {
             onPause: () => { if (this.upgradeModal && this.upgradeModal.style.display === 'flex') return; this.openPauseMenu(); },
             onResume: () => { const pm = document.getElementById('pauseMenu'); if (pm && pm.style.display === 'flex') this.closePauseMenu(); },
-            toggleStats: () => { (this.gs as any)._statsVisible = !(this.gs as any)._statsVisible; updateStatsOverlay(this.gs); },
+            toggleStats: () => { this.gs.statsVisible = !this.gs.statsVisible; updateStatsOverlay(this.gs); },
             onUpgradeNav: (dir) => { this.upgradeSelIndex = Math.max(0, Math.min(this.gs.offeredUpgrades.length - 1, this.upgradeSelIndex + dir)); this.applyUpgradeSelectionHighlight(); },
             onUpgradeConfirm: () => { const sel = this.gs.offeredUpgrades[this.upgradeSelIndex]; if (sel) this.chooseUpgrade(sel); },
             lastInputDeviceRef: lastInputRef
-        });
-        setupGamepad(this.input, this.gs, {
+        }));
+        this.cleanupFns.push(setupGamepad(this.input, this.gs, {
             onPause: () => { const pm = document.getElementById('pauseMenu'); if (pm && pm.style.display === 'flex') this.closePauseMenu(); else if (!this.gs.paused) this.openPauseMenu(); },
-            toggleStats: () => { (this.gs as any)._statsVisible = !(this.gs as any)._statsVisible; updateStatsOverlay(this.gs); },
+            toggleStats: () => { this.gs.statsVisible = !this.gs.statsVisible; updateStatsOverlay(this.gs); },
             onUpgradeNav: (dir) => { this.upgradeSelIndex = Math.max(0, Math.min(this.gs.offeredUpgrades.length - 1, this.upgradeSelIndex + dir)); this.applyUpgradeSelectionHighlight(); },
             onUpgradeConfirm: () => { const sel = this.gs.offeredUpgrades[this.upgradeSelIndex]; if (sel) this.chooseUpgrade(sel); },
             lastInputDeviceRef: lastInputRef
-        });
+        }));
     }
 
 
@@ -336,26 +233,24 @@ export class Game {
         this.gs.paused = true;
         pm.style.display = 'flex';
         const resume = document.getElementById('btnResume');
+        const settings = document.getElementById('btnPauseSettings');
         const quit = document.getElementById('btnQuit');
         // Remove old handlers if any by cloning (ensures multiple opens stay clean)
         if (resume) {
             const clone = resume.cloneNode(true) as HTMLButtonElement; resume.parentNode?.replaceChild(clone, resume);
             clone.addEventListener('click', () => this.closePauseMenu(), { once: true });
         }
+        if (settings) {
+            const cloneS = settings.cloneNode(true) as HTMLButtonElement; settings.parentNode?.replaceChild(cloneS, settings);
+            cloneS.addEventListener('click', () => {
+                pm.style.display = 'none';
+                window.dispatchEvent(new CustomEvent('voidsurvivor-open-settings'));
+            }, { once: true });
+        }
         if (quit) {
             const cloneQ = quit.cloneNode(true) as HTMLButtonElement; quit.parentNode?.replaceChild(cloneQ, quit);
             cloneQ.addEventListener('click', () => {
-                // Close pause menu and terminate the current run
                 pm.style.display = 'none';
-                try { this.app.ticker.stop(); } catch { }
-                try {
-                    // Manually remove children then destroy
-                    this.app.stage.removeChildren();
-                    this.app.destroy();
-                } catch { }
-                const root = document.getElementById('app');
-                if (root) root.innerHTML = '';
-                // Notify host to clear currentGame reference & show main menu
                 const evt = new CustomEvent('voidsurvivor-quit');
                 window.dispatchEvent(evt);
             }, { once: true });
@@ -374,10 +269,12 @@ export class Game {
                 case 'Escape': case 'KeyP': this.closePauseMenu(); break;
             }
         };
-        const existing = (pm as any)._keyHandler as ((e: KeyboardEvent) => void) | undefined;
-        if (existing) window.removeEventListener('keydown', existing);
-        (pm as any)._keyHandler = keyHandler;
+        this.pauseKeyCleanup?.();
         window.addEventListener('keydown', keyHandler);
+        this.pauseKeyCleanup = () => {
+            window.removeEventListener('keydown', keyHandler);
+            this.pauseKeyCleanup = undefined;
+        };
         // Lightweight gamepad nav for pause menu
         let lastButtons: boolean[] = [];
         let lastV = 0;
@@ -405,6 +302,7 @@ export class Game {
         const pm = document.getElementById('pauseMenu');
         if (!pm) return;
         pm.style.display = 'none';
+        this.pauseKeyCleanup?.();
         // only unpause if no other modal (upgrade or game over) is visible
         if (!(this.upgradeModal && this.upgradeModal.style.display === 'flex')) {
             this.gs.paused = false;
@@ -425,8 +323,9 @@ export class Game {
     fireProjectile() { fireProjectile(this.gs, { app: this.app, sprites: this.sprites }); }
 
     levelUp() {
+        const previousNeeded = this.gs.xpNeeded;
         this.gs.level++;
-        this.gs.xp = 0;
+        this.gs.xp = Math.max(0, this.gs.xp - previousNeeded);
         this.gs.xpNeeded = nextXpNeeded(this.gs.xpNeeded); // centralized XP curve
         this.showUpgradeChoices();
         playSound('level');
@@ -436,12 +335,20 @@ export class Game {
         const p = this.gs.entities.get(this.gs.playerId)!;
         const mult = p.xpGain || 1;
         this.gs.xp += amount * mult;
-        if (this.gs.xp >= this.gs.xpNeeded) {
+        if (!this.gs.paused && this.gs.xp >= this.gs.xpNeeded) {
             this.levelUp();
         }
     }
 
+    private killMob(mob: Entity) {
+        this.gs.kills++;
+        const elite = mob.isElite || false;
+        this.spawnXp(mob.x, mob.y, elite ? 20 : 2, elite);
+        rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, mob.x, mob.y, elite);
+    }
+
     damagePlayer(amount: number) {
+        if (!this.gs.runActive) return;
         const p = this.gs.entities.get(this.gs.playerId)!;
         if (p.invuln && p.invuln > 0) return;
         p.hp = Math.max(0, (p.hp || 0) - amount);
@@ -452,6 +359,7 @@ export class Game {
     }
 
     gameOver() {
+        if (!this.gs.runActive) return;
         this.gs.paused = true;
         this.gs.runActive = false;
         if (this.upgradeModal) {
@@ -459,16 +367,34 @@ export class Game {
             const mainMenu = document.getElementById('mainMenu');
             if (mainMenu && mainMenu.style.display !== 'none') mainMenu.style.display = 'none';
             this.upgradeModal.style.display = 'flex';
-            this.upgradeModal.innerHTML = `<div class="panel gameover-panel" style="text-align:center"><h2 style='margin:0 0 28px; font-size:42px; letter-spacing:1px;'>Game Over</h2><p style='margin:0; font-size:26px; line-height:1.4; color:#e4ecf4;'>You survived ${Math.floor(this.gs.time)}s<br/>Level ${this.gs.level} – Kills ${this.gs.kills}</p><div class='goButtons'><button id='restartBtn'>Restart</button><button id='mainMenuBtn'>Main Menu</button></div><div class='gameover-note'>Press A / Enter to activate focused button</div></div>`;
+            const shardsGained = this.gs.runShards || 0;
+            const totalAfterRun = this.gs.meta.shards + shardsGained;
+            const bestTime = Math.max(this.gs.meta.stats.bestTime, this.gs.time);
+            this.upgradeModal.innerHTML = `<div class="panel gameover-panel" style="text-align:center"><h2>Game Over</h2>
+                <div class="gameover-summary">
+                    <div><span>Time</span><strong>${Math.floor(this.gs.time)}s</strong></div>
+                    <div><span>Level</span><strong>${this.gs.level}</strong></div>
+                    <div><span>Kills</span><strong>${this.gs.kills}</strong></div>
+                    <div><span>Shards</span><strong>+${shardsGained}</strong></div>
+                    <div><span>Total</span><strong>${totalAfterRun}</strong></div>
+                    <div><span>Best</span><strong>${Math.floor(bestTime)}s</strong></div>
+                </div>
+                <div class='goButtons'><button id='restartBtn'>Restart</button><button id='mainMenuBtn'>Main Menu</button></div><div class='gameover-note'>Press A / Enter to activate focused button</div></div>`;
             const restart = document.getElementById('restartBtn') as HTMLButtonElement | null;
             const menuBtn = document.getElementById('mainMenuBtn') as HTMLButtonElement | null;
             restart?.addEventListener('click', () => {
+                this.gameOverKeyCleanup?.();
                 // Close the game over modal before restarting
                 if (this.upgradeModal) this.upgradeModal.style.display = 'none';
                 const evt = new CustomEvent('voidsurvivor-restart');
                 window.dispatchEvent(evt);
             });
-            menuBtn?.addEventListener('click', () => { (document.getElementById('mainMenu')!).style.display = 'flex'; this.upgradeModal!.style.display = 'none'; const hud = document.querySelector('.hud') as HTMLElement | null; if (hud) hud.style.display = 'none'; });
+            menuBtn?.addEventListener('click', () => {
+                this.gameOverKeyCleanup?.();
+                if (this.upgradeModal) this.upgradeModal.style.display = 'none';
+                const evt = new CustomEvent('voidsurvivor-quit');
+                window.dispatchEvent(evt);
+            });
             // Simple keyboard/controller focus handling for the two buttons
             let goIndex = 0;
             const goButtons = [restart, menuBtn].filter(Boolean) as HTMLButtonElement[];
@@ -483,7 +409,12 @@ export class Game {
                     case 'Enter': case 'Space': goButtons[goIndex].click(); break;
                 }
             };
-            window.addEventListener('keydown', goKeyHandler, { once: false });
+            this.gameOverKeyCleanup?.();
+            window.addEventListener('keydown', goKeyHandler);
+            this.gameOverKeyCleanup = () => {
+                window.removeEventListener('keydown', goKeyHandler);
+                this.gameOverKeyCleanup = undefined;
+            };
             // Lightweight gamepad polling for game over buttons
             let lastButtons: boolean[] = [];
             let lastH = 0;
@@ -504,9 +435,24 @@ export class Game {
             requestAnimationFrame(pollGO);
         }
         const shardsGained = this.gs.runShards || 0;
-        // Persist shards to meta
-        this.gs.meta.shards += shardsGained;
         this.endCb({ time: this.gs.time, kills: this.gs.kills, shards: shardsGained });
+    }
+
+    destroy() {
+        if (this.destroyed) return;
+        this.destroyed = true;
+        this.gameOverKeyCleanup?.();
+        this.pauseKeyCleanup?.();
+        for (const cleanup of this.cleanupFns.splice(0)) {
+            try { cleanup(); } catch { }
+        }
+        const pm = document.getElementById('pauseMenu');
+        if (this.upgradeModal) this.upgradeModal.style.display = 'none';
+        if (pm) pm.style.display = 'none';
+        try { this.app?.ticker.remove(this.update); } catch { }
+        try { this.app?.ticker.stop(); } catch { }
+        try { this.app?.destroy(true); } catch { }
+        this.sprites.clear();
     }
 
     // HUD & stats now handled via separate module
@@ -519,10 +465,9 @@ export class Game {
         this.gs.time += dt;
 
         // Timed elite spawn each full minute (t>=60) once per minute
-        if (!('lastEliteMinute' in (this as any))) (this as any).lastEliteMinute = -1;
         const minute = Math.floor(this.gs.time / 60);
-        if (minute >= 1 && (this as any).lastEliteMinute !== minute) {
-            (this as any).lastEliteMinute = minute;
+        if (minute >= 1 && this.gs.lastEliteMinute !== minute) {
+            this.gs.lastEliteMinute = minute;
             this.spawnElite();
         }
 
@@ -590,11 +535,12 @@ export class Game {
         }
 
         // Aura damage application
-        const auraLevel = (player as any).auraLevel || 0;
+        const auraLevel = player.auraLevel || 0;
         if (auraLevel > 0) {
-            const radius = auraRadiusAt(auraLevel);
+            // radius scales with the accumulated rarity bonus (%); DPS stays level-based
+            const radius = POWERS_VALUES.AURA_BASE_RADIUS * (player.auraRadiusPct ?? 100) / 100;
             const dps = auraDpsAt(auraLevel); // centralized aura DPS calc
-            const auraG: PIXI.Graphics = (player as any).auraG;
+            const auraG = player.auraG;
             if (auraG) {
                 auraG.clear();
                 auraG.circle(0, 0, radius).fill({ color: 0x66ffcc, alpha: 0.15 }).stroke({ color: 0x66ffcc, width: 2, alpha: 0.5 });
@@ -608,13 +554,14 @@ export class Game {
                 }
             }
         } else {
-            const auraG: PIXI.Graphics = (player as any).auraG; if (auraG) auraG.clear();
+            const auraG = player.auraG; if (auraG) auraG.clear();
         }
 
         // Orbiting scriptures
-        const orbitCount = ((player as any).magicOrbCount) || 0;
+        const orbitCount = player.magicOrbCount || 0;
         if (orbitCount > 0) {
-            const orbitG: PIXI.Container = (player as any).orbitG;
+            const orbitG = player.orbitG;
+            if (!orbitG) return;
             while (orbitG.children.length < orbitCount) {
                 const g = new PIXI.Graphics();
                 g.circle(0, 0, 6).fill({ color: 0xffe0b2 }).stroke({ color: 0xffb74d, width: 2 });
@@ -622,9 +569,10 @@ export class Game {
             }
             while (orbitG.children.length > orbitCount) { orbitG.removeChildAt(orbitG.children.length - 1); }
             const radius = POWERS_VALUES.MAGIC_ORB_RADIUS;
-            const dmg = ((player as any).magicOrbDamage) || POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE;
+            const dmg = player.magicOrbDamage || POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE;
+            const orbSpin = 2 * (player.orbSpeedMult ?? 1);
             for (let i = 0; i < orbitG.children.length; i++) {
-                const angle = this.gs.time * 2 + (i / orbitG.children.length) * Math.PI * 2;
+                const angle = this.gs.time * orbSpin + (i / orbitG.children.length) * Math.PI * 2;
                 const child = orbitG.children[i];
                 child.x = Math.cos(angle) * radius;
                 child.y = Math.sin(angle) * radius;
@@ -636,10 +584,10 @@ export class Game {
                     const cx = player.x + child.x; const cy = player.y + child.y;
                     const rr = (m.radius + 6);
                     if (distSq(m.x, m.y, cx, cy) < rr * rr) {
-                        const last = (m as any)._lastOrbitHit || 0;
+                        const last = m.lastOrbitHitAt || 0;
                         if (this.gs.time - last >= 1) {
                             m.hp = (m.hp || 0) - dmg; // single chunk
-                            (m as any)._lastOrbitHit = this.gs.time;
+                            m.lastOrbitHitAt = this.gs.time;
                             spawnHitBurst(this.gs, { app: this.app, sprites: this.sprites }, m.x, m.y, 0xffb74d, 4);
                         }
                     }
@@ -651,10 +599,7 @@ export class Game {
         const passiveDeaths: number[] = [];
         for (const m of this.gs.entities.values()) {
             if (m.kind === 'mob' && (m.hp || 0) <= 0) {
-                this.gs.kills++;
-                const elite = (m as any).elite;
-                if (elite) this.spawnXp(m.x, m.y, 20, true); else this.spawnXp(m.x, m.y, 2);
-                rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, m.x, m.y, elite);
+                this.killMob(m);
                 passiveDeaths.push(m.id);
             }
         }
@@ -662,6 +607,7 @@ export class Game {
         const toRemove: number[] = [...passiveDeaths];
         for (const e of this.gs.entities.values()) {
             if (e.kind === 'player') continue;
+            if (toRemove.includes(e.id)) continue;
             if (e.kind === 'mob') {
                 const dx = player.x - e.x; const dy = player.y - e.y; const len = Math.hypot(dx, dy) || 1;
                 e.vx = (dx / len) * (e.speed || 60);
@@ -676,7 +622,7 @@ export class Game {
                     player.x += (dxn / lenp) * push; player.y += (dyn / lenp) * push;
                 }
                 // Update mob health bar (only show if damaged)
-                const hpBar: PIXI.Graphics | undefined = (e as any).hpRing;
+                const hpBar = e.hpRing;
                 if (hpBar) {
                     if (e.hp! < e.maxHp! && e.hp! > 0) {
                         const pct = Math.max(0, e.hp! / (e.maxHp! || 1));
@@ -697,6 +643,7 @@ export class Game {
                 if (e.life! <= 0) { toRemove.push(e.id); continue; }
                 for (const m of this.gs.entities.values()) {
                     if (m.kind !== 'mob') continue;
+                    if ((m.hp || 0) <= 0 || toRemove.includes(m.id)) continue;
                     const r = m.radius + e.radius;
                     if (distSq(m.x, m.y, e.x, e.y) < r * r) {
                         m.hp! -= e.damage || 1;
@@ -704,10 +651,7 @@ export class Game {
                         playSound('hit');
                         toRemove.push(e.id);
                         if (m.hp! <= 0) {
-                            this.gs.kills++;
-                            const elite = (m as any).elite;
-                            if (elite) this.spawnXp(m.x, m.y, 20, true); else this.spawnXp(m.x, m.y, 2);
-                            rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, m.x, m.y, elite);
+                            this.killMob(m);
                             spawnHitBurst(this.gs, { app: this.app, sprites: this.sprites }, m.x, m.y, 0xff4d4d, 10);
                             toRemove.push(m.id);
                         }
@@ -767,18 +711,18 @@ export class Game {
         for (const [id, sprite] of this.sprites) {
             const e = this.gs.entities.get(id);
             if (!e) continue;
-            (sprite as any).x = e.x;
-            (sprite as any).y = e.y;
-            if (e.kind === 'particle') { (sprite as any).alpha = e.alpha ?? 1; }
-            if (e.kind === 'xp' && (sprite as any).pulse) {
-                const elite = (sprite as any).elite;
+            sprite.x = e.x;
+            sprite.y = e.y;
+            if (e.kind === 'particle') { sprite.alpha = e.alpha ?? 1; }
+            if (e.kind === 'xp' && e.pulse) {
+                const elite = e.isElite;
                 const amp = elite ? 0.1 : 0.06;
                 const speed = elite ? 5 : 4;
                 const s = 1 + Math.sin(this.gs.time * speed + e.id) * amp;
-                (sprite as any).scale.set(s);
-            } else if (e.kind === 'shard' && (sprite as any).spin) {
+                sprite.scale.set(s);
+            } else if (e.kind === 'shard' && e.spin) {
                 const t = this.gs.time * 6 + e.id;
-                (sprite as any).rotation = t;
+                sprite.rotation = t;
             }
         }
 

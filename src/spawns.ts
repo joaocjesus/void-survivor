@@ -1,11 +1,12 @@
 import * as PIXI from 'pixi.js';
 import { GameState, Entity } from './types';
-import { pickAngle } from './math';
+import { chooseShotAngles, pickAngle } from './math';
 import { playSound } from './audio';
+import { PROJECTILE_BASE_LIFE } from './constants/balance';
 
 export interface RenderCtx {
     app: PIXI.Application;
-    sprites: Map<number, PIXI.Container | PIXI.Graphics>;
+    sprites: Map<number, PIXI.Container>;
 }
 
 export function spawnMob(gs: GameState, ctx: RenderCtx) {
@@ -21,7 +22,7 @@ export function spawnMob(gs: GameState, ctx: RenderCtx) {
     gs.entities.set(id, e);
     const g = new PIXI.Container();
     const body = new PIXI.Graphics(); body.circle(0, 0, e.radius).fill({ color: 0x8b1a1a }).stroke({ color: 0xff4d4d, width: 2 });
-    const hpRing = new PIXI.Graphics(); g.addChild(body); g.addChild(hpRing); (e as any).hpRing = hpRing;
+    const hpRing = new PIXI.Graphics(); g.addChild(body); g.addChild(hpRing); e.hpRing = hpRing;
     g.x = sx; g.y = sy; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
 
@@ -34,15 +35,14 @@ export function spawnElite(gs: GameState, ctx: RenderCtx) {
     const sx = player.x + Math.cos(angle) * spawnDist;
     const sy = player.y + Math.sin(angle) * spawnDist;
     const hp = 120 + Math.floor(gs.time * 1.2);
-    const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 16, kind: 'mob', hp, maxHp: hp, damage: 10, speed: 30 + gs.rng() * 15 };
-    (e as any).elite = true;
+    const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 16, kind: 'mob', hp, maxHp: hp, damage: 10, speed: 30 + gs.rng() * 15, isElite: true };
     gs.entities.set(id, e);
     const g = new PIXI.Container();
     const body = new PIXI.Graphics();
     body.rect(-e.radius, -e.radius, e.radius * 2, e.radius * 2).fill({ color: 0x6a1b9a }).stroke({ color: 0xba68c8, width: 3 });
     const hpRing = new PIXI.Graphics();
     const glow = new PIXI.Graphics(); glow.rect(-e.radius - 6, -e.radius - 6, (e.radius + 6) * 2, (e.radius + 6) * 2).fill({ color: 0x9c27b0, alpha: 0.05 });
-    g.addChild(glow); g.addChild(body); g.addChild(hpRing); (e as any).hpRing = hpRing;
+    g.addChild(glow); g.addChild(body); g.addChild(hpRing); e.hpRing = hpRing;
     g.x = sx; g.y = sy; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
 
@@ -52,7 +52,7 @@ export function spawnXp(gs: GameState, ctx: RenderCtx, x: number, y: number, val
     if (x < 8) x = 8; else if (x > w - 8) x = w - 8;
     if (y < 8) y = 8; else if (y > h - 8) y = h - 8;
     const baseRadius = elite ? 5 : 4;
-    const e: Entity = { id, x, y, vx: 0, vy: 0, radius: baseRadius, kind: 'xp', value };
+    const e: Entity = { id, x, y, vx: 0, vy: 0, radius: baseRadius, kind: 'xp', value, isElite: elite, pulse: true };
     gs.entities.set(id, e);
     const g = new PIXI.Container();
     const glow = new PIXI.Graphics();
@@ -62,7 +62,7 @@ export function spawnXp(gs: GameState, ctx: RenderCtx, x: number, y: number, val
     glow.circle(0, 0, glowRadius).fill({ color: baseColor, alpha: elite ? 0.12 : 0.08 });
     const gem = new PIXI.Graphics();
     gem.circle(0, 0, e.radius + (elite ? 1 : 0)).fill({ color: baseColor }).stroke({ color: strokeColor, width: elite ? 2 : 1 });
-    g.addChild(glow); g.addChild(gem); (g as any).pulse = true; (g as any).elite = elite;
+    g.addChild(glow); g.addChild(gem);
     g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
 
@@ -71,25 +71,37 @@ export function spawnShard(gs: GameState, ctx: RenderCtx, x: number, y: number, 
     const w = ctx.app.renderer.width; const h = ctx.app.renderer.height;
     if (x < 8) x = 8; else if (x > w - 8) x = w - 8;
     if (y < 8) y = 8; else if (y > h - 8) y = h - 8;
-    const e: Entity = { id, x, y, vx: 0, vy: 0, radius: 5, kind: 'shard', value };
+    const e: Entity = { id, x, y, vx: 0, vy: 0, radius: 5, kind: 'shard', value, spin: true };
     gs.entities.set(id, e);
     const g = new PIXI.Container();
     const glow = new PIXI.Graphics(); glow.circle(0, 0, e.radius + 6).fill({ color: 0xffd180, alpha: 0.08 });
     const core = new PIXI.Graphics(); core.moveTo(0, -4).lineTo(4, 0).lineTo(0, 4).lineTo(-4, 0).lineTo(0, -4).fill({ color: 0xffb74d }).stroke({ color: 0xffe0b2, width: 1 });
-    g.addChild(glow); g.addChild(core); (g as any).spin = true; g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+    g.addChild(glow); g.addChild(core); g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
+
+// Spread applied to duplicate shots when there are fewer in-range enemies than shots.
+const MULTISHOT_DUP_SPREAD = 0.18; // radians (~10°)
 
 export function fireProjectile(gs: GameState, ctx: RenderCtx) {
     const player = gs.entities.get(gs.playerId)!;
-    const id = gs.nextEntityId++;
-    const angle = pickAngle(gs) ?? gs.rng() * Math.PI * 2;
     const speed = player.projectileSpeed || 280;
-    const life = 1.2;
+    const life = PROJECTILE_BASE_LIFE * (player.projLifeSpanMult ?? 1);
     const radius = 3;
-    const e: Entity = { id, x: player.x, y: player.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius, kind: 'projectile', damage: player.damage, life };
-    gs.entities.set(id, e);
-    const g = new PIXI.Graphics(); g.circle(0, 0, radius).fill({ color: 0xffec8d }).stroke({ color: 0xffd54f, width: 1 });
-    g.x = player.x; g.y = player.y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+    const shots = 1 + (player.multishot || 0);
+
+    // Each shot aims at a distinct in-range enemy (reach = speed × lifetime); extras reuse.
+    const reach = speed * life;
+    const mobs = [...gs.entities.values()].filter(e => e.kind === 'mob');
+    const fallback = pickAngle(gs) ?? gs.rng() * Math.PI * 2;
+    const angles = chooseShotAngles(player.x, player.y, mobs, shots, reach, fallback, MULTISHOT_DUP_SPREAD);
+
+    for (const angle of angles) {
+        const id = gs.nextEntityId++;
+        const e: Entity = { id, x: player.x, y: player.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius, kind: 'projectile', damage: player.damage, life };
+        gs.entities.set(id, e);
+        const g = new PIXI.Graphics(); g.circle(0, 0, radius).fill({ color: 0xffec8d }).stroke({ color: 0xffd54f, width: 1 });
+        g.x = player.x; g.y = player.y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+    }
     playSound('shoot');
 }
 

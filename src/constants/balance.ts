@@ -31,7 +31,6 @@ export const UPGRADE_VALUES = {
     MOVE_SPEED_MULT: 1.10,
     PROJECTILE_SPEED_MULT: 1.20,
     MAX_HP_PLUS: 25,
-    MAX_HP_HEAL: 25,
     PICKUP_RANGE_MULT: 1.25,
     REGEN_PLUS: 0.5, // HP/s
 };
@@ -45,6 +44,7 @@ export const SPAWN_INTERVAL_START = 1.4; // seconds at t=0
 export const SPAWN_INTERVAL_MIN = 0.25;  // lower bound
 export const SPAWN_INTERVAL_DECAY = 0.006; // per second reduction before clamp
 export const FIRE_INTERVAL_BASE = 1.65;   // base projectile fire interval (reduced by attack speed multiplier)
+export const PROJECTILE_BASE_LIFE = 1.2;   // seconds a projectile lives before despawn (scaled by projLifeSpan)
 
 // Base power values (static baselines used at level 1)
 export const POWERS_VALUES = {

@@ -1,8 +1,57 @@
+import type * as PIXI from 'pixi.js';
+import type { Rarity } from './constants/rarity';
+
 export interface Vector2 { x: number; y: number; }
 export type EntityKind = 'player' | 'mob' | 'projectile' | 'xp' | 'shard' | 'particle';
-export interface Entity { id: number; x: number; y: number; vx: number; vy: number; radius: number; kind: EntityKind; hp?: number; maxHp?: number; damage?: number; speed?: number; life?: number; value?: number; attackSpeed?: number; projectileSpeed?: number; pickupRange?: number; invuln?: number; regen?: number; alpha?: number; xpGain?: number; }
+export interface Entity {
+    id: number;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    radius: number;
+    kind: EntityKind;
+    hp?: number;
+    maxHp?: number;
+    damage?: number;
+    speed?: number;
+    life?: number;
+    value?: number;
+    attackSpeed?: number;
+    projectileSpeed?: number;
+    pickupRange?: number;
+    invuln?: number;
+    regen?: number;
+    alpha?: number;
+    xpGain?: number;
+    isElite?: boolean;
+    auraLevel?: number;
+    auraRadiusPct?: number;
+    magicOrbCount?: number;
+    magicOrbDamage?: number;
+    orbSpeedMult?: number;
+    multishot?: number;
+    projLifeSpanMult?: number;
+    lastOrbitHitAt?: number;
+    pulse?: boolean;
+    spin?: boolean;
+    hpRing?: PIXI.Graphics;
+    auraG?: PIXI.Graphics;
+    orbitG?: PIXI.Container;
+}
 
-export interface UpgradeDef { id: string; name: string; description: string; maxLevel?: number; apply: (gs: GameState) => void; }
+export interface UpgradeDef {
+    id: string;
+    name: string;
+    description: string;
+    maxLevel?: number;
+    minRarity?: Rarity;                 // lowest tier this card can drop at (default 'common')
+    isPower?: boolean;                  // active ability (extra "power" styling on the card)
+    requires?: (gs: GameState) => boolean; // gate: only offered when this returns true
+    apply: (gs: GameState, rarity: Rarity) => void;
+}
+
+export interface OfferedUpgrade { def: UpgradeDef; rarity: Rarity; }
 
 export interface MetaUpgradeDef { id: string; name: string; description: string; maxLevel: number; cost: (level: number) => number; apply: (level: number, base: PlayerStartStats) => void; }
 
@@ -28,11 +77,14 @@ export interface GameState {
     rng: () => number;
     paused: boolean;
     upgradePool: UpgradeDef[];
-    offeredUpgrades: UpgradeDef[];
+    upgradeCounts: Record<string, number>; // times each upgrade has been taken
+    offeredUpgrades: OfferedUpgrade[];
     runActive: boolean;
     startStats: PlayerStartStats;
     meta: MetaSave;
     runShards?: number; // shards collected this run
+    statsVisible?: boolean;
+    lastEliteMinute?: number;
 }
 
 export interface PersistPayload {
