@@ -64,9 +64,9 @@ export function renderUpgradeCard(upgrade: UpgradeDef, options: UpgradeCardOptio
     if (upgrade.isPower) card.classList.add('power');
     if (options.onChoose) card.onclick = () => options.onChoose?.(upgrade);
 
-    const badge = (side: string) =>
-        `<span class="levelBadge levelBadge--${side}"><span class="levelBadgeLabel">LVL</span><span class="levelBadgeNum">${nextLevel}</span></span>`;
-    const levelBadges = `${badge('left')}${badge('right')}`;
+    const badge = (side: 'left' | 'right', level: number, tone: 'current' | 'next') =>
+        `<span class="levelBadge levelBadge--${side} levelBadge--${tone}"><span class="levelBadgeLabel">LVL</span><span class="levelBadgeNum">${level}</span></span>`;
+    const levelBadges = `${badge('left', currentLevel, 'current')}${badge('right', nextLevel, 'next')}`;
     const subtitle =
         `<div class="rarityLabel">${RARITY_LABEL[rarity]}</div>` +
         (isUnlock ? `<div class="unlockLine">New Unlock</div>` : '');

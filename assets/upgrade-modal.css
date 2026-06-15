@@ -60,8 +60,8 @@
     align-items: center;
     justify-content: center;
     background: linear-gradient(180deg,
-        color-mix(in srgb, var(--rarity) 30%, #2f3a43),
-        color-mix(in srgb, var(--rarity) 15%, #232a30));
+            color-mix(in srgb, var(--rarity) 30%, #2f3a43),
+            color-mix(in srgb, var(--rarity) 15%, #232a30));
     border: 1px solid color-mix(in srgb, var(--rarity) 35%, rgba(255, 255, 255, .09));
     border-radius: 8px;
     box-shadow: 0 1px 0 rgba(255, 255, 255, .05) inset, 0 2px 8px rgba(0, 0, 0, .22)
@@ -102,13 +102,21 @@
     width: 66px;
     height: 66px;
     color: #eef3f8;
-    font-family: 'Courier New', ui-monospace, monospace;
     text-shadow: 0 0 6px rgba(0, 0, 0, .9), 0 1px 2px rgba(0, 0, 0, .9)
 }
 
 .upgrade .levelBadge--left {
     left: 2px;
     transform: translateY(-50%)
+}
+
+.upgrade .levelBadge--current {
+    opacity: .78
+}
+
+.upgrade .levelBadge--current .levelBadgeLabel,
+.upgrade .levelBadge--current .levelBadgeNum {
+    color: #aeb7bf
 }
 
 /* mirrored twin: flip the whole emblem, then un-flip the text */
@@ -120,6 +128,45 @@
 .upgrade .levelBadge--right .levelBadgeLabel,
 .upgrade .levelBadge--right .levelBadgeNum {
     transform: scaleX(-1)
+}
+
+.upgrade .levelBadge--current .levelBadgeNum::before,
+.upgrade .levelBadge--current .levelBadgeNum::after {
+    content: "";
+    position: absolute;
+    z-index: 3;
+    pointer-events: none
+}
+
+.upgrade .levelBadge--current .levelBadgeNum::before {
+    inset: -4px -6px;
+    background:
+        linear-gradient(31deg,
+            transparent 40%,
+            rgba(4, 7, 10, .9) 45%,
+            rgba(190, 207, 218, .38) 47%,
+            rgba(4, 7, 10, .9) 49%,
+            transparent 55%),
+        linear-gradient(147deg,
+            transparent 40%,
+            rgba(4, 7, 10, .82) 44%,
+            rgba(190, 207, 218, .3) 46%,
+            rgba(4, 7, 10, .82) 48%,
+            transparent 55%);
+    opacity: .9;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .85));
+    -webkit-mask: radial-gradient(ellipse at center, #000 0 58%, transparent 72%);
+    mask: radial-gradient(ellipse at center, #000 0 58%, transparent 72%)
+}
+
+.upgrade .levelBadge--current .levelBadgeNum::after {
+    inset: -2px -4px;
+    background:
+        linear-gradient(24deg, transparent 45%, rgba(240, 247, 252, .24) 47%, transparent 49%),
+        linear-gradient(154deg, transparent 44%, rgba(240, 247, 252, .2) 46%, transparent 48%);
+    opacity: .75;
+    -webkit-mask: radial-gradient(ellipse at center, #000 0 50%, transparent 66%);
+    mask: radial-gradient(ellipse at center, #000 0 50%, transparent 66%)
 }
 
 /* ragged ring shape (PNG) as a translucent monochrome fill via mask */
@@ -165,7 +212,7 @@
 .upgrade .levelBadgeLabel {
     font-size: 8px;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
     opacity: .8
 }
 
@@ -173,7 +220,7 @@
     font-size: 19px;
     font-weight: 800;
     line-height: 1;
-    letter-spacing: 1px
+    letter-spacing: .5px
 }
 
 @keyframes vortexSpin {
@@ -394,12 +441,29 @@ body.controller-input .upgrade:not(.selected):hover:before {
 }
 
 /* ----- Rarity colours (accent var consumed by border/glow/label/badge) ----- */
-.upgrade { --rarity: #6b7480 }
-.upgrade.rarity-common { --rarity: #6b7480 }
-.upgrade.rarity-uncommon { --rarity: #5bd16a }
-.upgrade.rarity-rare { --rarity: #3d9bff }
-.upgrade.rarity-epic { --rarity: #b163ff }
-.upgrade.rarity-legendary { --rarity: #ffcf3a }
+.upgrade {
+    --rarity: #6b7480
+}
+
+.upgrade.rarity-common {
+    --rarity: #6b7480
+}
+
+.upgrade.rarity-uncommon {
+    --rarity: #5bd16a
+}
+
+.upgrade.rarity-rare {
+    --rarity: #3d9bff
+}
+
+.upgrade.rarity-epic {
+    --rarity: #b163ff
+}
+
+.upgrade.rarity-legendary {
+    --rarity: #ffcf3a
+}
 
 .rarityLabel {
     text-align: center;
@@ -414,8 +478,8 @@ body.controller-input .upgrade:not(.selected):hover:before {
 /* tint the level emblem fill toward the rarity colour */
 .upgrade .levelBadge::before {
     background: linear-gradient(155deg,
-        color-mix(in srgb, var(--rarity) 70%, #aeb6c2),
-        color-mix(in srgb, var(--rarity) 35%, #46525e))
+            color-mix(in srgb, var(--rarity) 70%, #aeb6c2),
+            color-mix(in srgb, var(--rarity) 35%, #46525e))
 }
 
 /* ----- Power (active ability) ornament: sigil watermark + tag ----- */
