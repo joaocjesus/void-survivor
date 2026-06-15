@@ -99,30 +99,33 @@ function clearDirectionalInput(input: InputState) {
 }
 
 export function setupKeyboard(input: InputState, gs: GameState, helpers: { onPause: () => void; onResume: () => void; toggleStats: () => void; onUpgradeNav: (dir: -1 | 1) => void; onUpgradeConfirm: () => void; lastInputDeviceRef: { v: 'keyboard' | 'gamepad'; } }): () => void {
+    const normalizeKey = (key: string) => key.length === 1 ? key.toLowerCase() : key;
     const keydown = (e: KeyboardEvent) => {
         helpers.lastInputDeviceRef.v = 'keyboard';
-        if (e.key === 'w' || e.key === 'ArrowUp') input.up = true;
-        if (e.key === 's' || e.key === 'ArrowDown') input.down = true;
-        if (e.key === 'a' || e.key === 'ArrowLeft') input.left = true;
-        if (e.key === 'd' || e.key === 'ArrowRight') input.right = true;
+        const key = normalizeKey(e.key);
+        if (key === 'w' || key === 'ArrowUp') input.up = true;
+        if (key === 's' || key === 'ArrowDown') input.down = true;
+        if (key === 'a' || key === 'ArrowLeft') input.left = true;
+        if (key === 'd' || key === 'ArrowRight') input.right = true;
         if (gs.paused && gs.offeredUpgrades.length) {
-            if (['ArrowLeft', 'a', 'A'].includes(e.key)) { helpers.onUpgradeNav(-1); e.preventDefault(); }
-            else if (['ArrowRight', 'd', 'D'].includes(e.key)) { helpers.onUpgradeNav(1); e.preventDefault(); }
-            else if (e.key === 'Enter') { helpers.onUpgradeConfirm(); e.preventDefault(); }
+            if (key === 'ArrowLeft' || key === 'a') { helpers.onUpgradeNav(-1); e.preventDefault(); }
+            else if (key === 'ArrowRight' || key === 'd') { helpers.onUpgradeNav(1); e.preventDefault(); }
+            else if (key === 'Enter') { helpers.onUpgradeConfirm(); e.preventDefault(); }
         }
-        if ((e.key === 'Escape' || e.key.toLowerCase() === 'p') && !gs.paused) {
+        if ((key === 'Escape' || key === 'p') && !gs.paused) {
             helpers.onPause();
-        } else if ((e.key === 'Escape' || e.key.toLowerCase() === 'p') && gs.paused) {
+        } else if ((key === 'Escape' || key === 'p') && gs.paused) {
             helpers.onResume();
         }
-        if (e.key === 'Tab') { if (!e.repeat) { helpers.toggleStats(); } e.preventDefault(); }
+        if (key === 'Tab') { if (!e.repeat) { helpers.toggleStats(); } e.preventDefault(); }
     };
     const keyup = (e: KeyboardEvent) => {
         helpers.lastInputDeviceRef.v = 'keyboard';
-        if (e.key === 'w' || e.key === 'ArrowUp') input.up = false;
-        if (e.key === 's' || e.key === 'ArrowDown') input.down = false;
-        if (e.key === 'a' || e.key === 'ArrowLeft') input.left = false;
-        if (e.key === 'd' || e.key === 'ArrowRight') input.right = false;
+        const key = normalizeKey(e.key);
+        if (key === 'w' || key === 'ArrowUp') input.up = false;
+        if (key === 's' || key === 'ArrowDown') input.down = false;
+        if (key === 'a' || key === 'ArrowLeft') input.left = false;
+        if (key === 'd' || key === 'ArrowRight') input.right = false;
     };
     window.addEventListener('keydown', keydown);
     window.addEventListener('keyup', keyup);

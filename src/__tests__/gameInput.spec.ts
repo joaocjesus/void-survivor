@@ -1,5 +1,8 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it } from 'vitest';
-import { readGamepadDirections } from '../game/input';
+import { createInputState, readGamepadDirections, setupKeyboard } from '../game/input';
+import type { GameState } from '../types';
 
 function pad(
     axes: number[],
@@ -81,5 +84,47 @@ describe('readGamepadDirections', () => {
         expect(input.anyDir).toBe(false);
         expect(input.axH).toBe(0);
         expect(input.axV).toBe(0);
+    });
+});
+
+describe('setupKeyboard', () => {
+    it('handles WASD movement when Caps Lock produces uppercase keys', () => {
+        const input = createInputState();
+        const gs = {
+            paused: false,
+            offeredUpgrades: [],
+        } as unknown as GameState;
+        const cleanup = setupKeyboard(input, gs, {
+            onPause: () => { },
+            onResume: () => { },
+            toggleStats: () => { },
+            onUpgradeNav: () => { },
+            onUpgradeConfirm: () => { },
+            lastInputDeviceRef: { v: 'keyboard' },
+        });
+
+        try {
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'W' }));
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'A' }));
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'S' }));
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'D' }));
+
+            expect(input.up).toBe(true);
+            expect(input.left).toBe(true);
+            expect(input.down).toBe(true);
+            expect(input.right).toBe(true);
+
+            window.dispatchEvent(new KeyboardEvent('keyup', { key: 'W' }));
+            window.dispatchEvent(new KeyboardEvent('keyup', { key: 'A' }));
+            window.dispatchEvent(new KeyboardEvent('keyup', { key: 'S' }));
+            window.dispatchEvent(new KeyboardEvent('keyup', { key: 'D' }));
+
+            expect(input.up).toBe(false);
+            expect(input.left).toBe(false);
+            expect(input.down).toBe(false);
+            expect(input.right).toBe(false);
+        } finally {
+            cleanup();
+        }
     });
 });
