@@ -341,8 +341,10 @@ export class Game {
     private killMob(mob: Entity) {
         this.gs.kills++;
         const elite = mob.isElite || false;
-        this.spawnXp(mob.x, mob.y, elite ? 20 : 2, elite);
-        rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, mob.x, mob.y, elite);
+        const droppedShard = rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, mob.x, mob.y, elite);
+        if (!droppedShard) {
+            this.spawnXp(mob.x, mob.y, elite ? 20 : 2, elite);
+        }
     }
 
     damagePlayer(amount: number) {
@@ -702,7 +704,7 @@ export class Game {
                         e.y += dy / len * dt * 160;
                     }
                     if (distSq(player.x, player.y, e.x, e.y) < (player.radius + e.radius + 4) ** 2) {
-                        const val = e.value || 1;
+                        const val = e.shardValue || 1;
                         this.gs.runShards = (this.gs.runShards || 0) + val;
                         playSound('pickup');
                         toRemove.push(e.id);
@@ -758,7 +760,7 @@ export class Game {
     };
 
     spawnShard(x: number, y: number, value: number) { spawnShard(this.gs, { app: this.app, sprites: this.sprites }, x, y, value); }
-    rollShardDrop(x: number, y: number, elite: boolean) { rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, x, y, elite); }
+    rollShardDrop(x: number, y: number, elite: boolean) { return rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, x, y, elite); }
     spawnElite() { spawnElite(this.gs, { app: this.app, sprites: this.sprites }); }
 
     updateStatsOverlay() { updateStatsOverlay(this.gs); }

@@ -233,10 +233,18 @@
     display: flex;
     flex-direction: column;
     padding: 14px;
-    border: 1px solid rgba(255, 255, 255, .08);
+    border: 1px solid color-mix(in srgb, var(--rarity) 18%, rgba(255, 255, 255, .08));
     border-radius: 8px;
-    background: rgba(0, 0, 0, .12);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, .035) inset
+    background:
+        radial-gradient(circle at 50% 0%,
+            color-mix(in srgb, var(--rarity) 16%, transparent),
+            transparent 58%),
+        linear-gradient(180deg,
+            color-mix(in srgb, var(--rarity) 8%, rgba(0, 0, 0, .14)),
+            rgba(0, 0, 0, .16));
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, .035) inset,
+        0 0 18px -12px color-mix(in srgb, var(--rarity) 70%, transparent) inset
 }
 
 .upgrade .body {
@@ -412,7 +420,7 @@ body.controller-input .upgrade:not(.selected):hover:before {
 
 /* ----- Power (active ability) ornament: sigil watermark + tag ----- */
 .upgrade.power .rarityLabel::after {
-    content: " · ✦ ABILITY";
+    content: " ✦ ABILITY";
     color: color-mix(in srgb, var(--rarity) 70%, #cfd9e3)
 }
 

@@ -69,14 +69,37 @@ export function spawnXp(gs: GameState, ctx: RenderCtx, x: number, y: number, val
 export function spawnShard(gs: GameState, ctx: RenderCtx, x: number, y: number, value: number) {
     const id = gs.nextEntityId++;
     const w = ctx.app.renderer.width; const h = ctx.app.renderer.height;
-    if (x < 8) x = 8; else if (x > w - 8) x = w - 8;
-    if (y < 8) y = 8; else if (y > h - 8) y = h - 8;
-    const e: Entity = { id, x, y, vx: 0, vy: 0, radius: 5, kind: 'shard', value, spin: true };
+    if (x < 10) x = 10; else if (x > w - 10) x = w - 10;
+    if (y < 10) y = 10; else if (y > h - 10) y = h - 10;
+    const e: Entity = { id, x, y, vx: 0, vy: 0, radius: 6, kind: 'shard', shardValue: value };
     gs.entities.set(id, e);
     const g = new PIXI.Container();
-    const glow = new PIXI.Graphics(); glow.circle(0, 0, e.radius + 6).fill({ color: 0xffd180, alpha: 0.08 });
-    const core = new PIXI.Graphics(); core.moveTo(0, -4).lineTo(4, 0).lineTo(0, 4).lineTo(-4, 0).lineTo(0, -4).fill({ color: 0xffb74d }).stroke({ color: 0xffe0b2, width: 1 });
-    g.addChild(glow); g.addChild(core); g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+    const glow = new PIXI.Graphics();
+    glow.circle(0, 0, e.radius + 4).fill({ color: 0xffb74d, alpha: 0.1 });
+    const core = new PIXI.Graphics();
+    core
+        .moveTo(0, -6)
+        .lineTo(5, -2)
+        .lineTo(0, 6)
+        .lineTo(-5, -2)
+        .lineTo(0, -6)
+        .fill({ color: 0xffb74d })
+        .stroke({ color: 0xffe0b2, width: 1 });
+    const facet = new PIXI.Graphics();
+    facet
+        .moveTo(0, -5)
+        .lineTo(3.5, -2)
+        .lineTo(0, 4.5)
+        .lineTo(0, -5)
+        .fill({ color: 0xffe0b2, alpha: 0.65 });
+    const shade = new PIXI.Graphics();
+    shade
+        .moveTo(0, -5)
+        .lineTo(0, 4.5)
+        .lineTo(-3.5, -2)
+        .lineTo(0, -5)
+        .fill({ color: 0xf57c00, alpha: 0.45 });
+    g.addChild(glow); g.addChild(core); g.addChild(facet); g.addChild(shade); g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
 
 // Spread applied to duplicate shots when there are fewer in-range enemies than shots.
@@ -120,11 +143,13 @@ export function spawnHitBurst(gs: GameState, ctx: RenderCtx, x: number, y: numbe
     for (let i = 0; i < count; i++) spawnParticle(gs, ctx, x, y, color);
 }
 
-export function rollShardDrop(gs: GameState, ctx: RenderCtx, x: number, y: number, elite: boolean) {
-    const baseChance = Math.min(0.05 + gs.time * 0.0005, 0.25);
-    const drop = elite || (gs.rng() < baseChance);
-    if (!drop) return;
+export function rollShardDrop(gs: GameState, ctx: RenderCtx, x: number, y: number, elite: boolean): boolean {
+    const drop = elite || (gs.rng() < 0.05);
+    if (!drop) return false;
     const baseVal = 1 + Math.floor(gs.time / 60 * 0.6) + Math.floor(gs.kills / 200);
     const value = elite ? baseVal * 10 : baseVal;
-    spawnShard(gs, ctx, x, y, value);
+    const angle = gs.rng() * Math.PI * 2;
+    const offset = elite ? 18 : 14;
+    spawnShard(gs, ctx, x + Math.cos(angle) * offset, y + Math.sin(angle) * offset, value);
+    return true;
 }

@@ -17,6 +17,7 @@ export interface Entity {
     speed?: number;
     life?: number;
     value?: number;
+    shardValue?: number;
     attackSpeed?: number;
     boltSpeed?: number;
     pickupRange?: number;
