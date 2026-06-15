@@ -7,7 +7,7 @@ Arena survival roguelite prototype built with TypeScript, Vite and PixiJS.
 - Controller & keyboard navigation for menus, upgrades, pause screen
 - Auto-targeting bolts with damage, attack speed & bolt speed scaling
 - Magic Aura (AOE damage field) and Magic Orbs powers
-- Elite enemies with boosted XP gem drops (purple gems = 10× XP)
+- Elite enemies with boosted XP gem drops (purple boss gems = 5× XP)
 - XP, Leveling & upgrade draft (3 random choices) with power comparisons
 - Shards (meta currency) + guaranteed elite shard drops
 - Meta upgrade menu with persistent progression (localStorage)

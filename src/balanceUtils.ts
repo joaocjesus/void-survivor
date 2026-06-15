@@ -22,5 +22,17 @@ export function auraDpsAt(level: number): number {
     return POWERS_VALUES.AURA_DPS_PER_LEVEL * level;
 }
 
+export function pickupRangeGain(current: number, base: number, rarityPct: number): number {
+    const safeBase = Math.max(1, base);
+    const safeCurrent = Math.max(safeBase, current || safeBase);
+    const linearGain = safeBase * rarityPct / 100;
+    const earlyBoost = 1 + 1.5 / Math.sqrt(safeCurrent / safeBase);
+    return linearGain * earlyBoost;
+}
+
+export function nextPickupRange(current: number, base: number, rarityPct: number): number {
+    return current + pickupRangeGain(current, base, rarityPct);
+}
+
 export function magicOrbBaseDamage(): number { return POWERS_VALUES.MAGIC_ORB_BASE_DAMAGE; }
 export function magicOrbRadius(): number { return POWERS_VALUES.MAGIC_ORB_RADIUS; }

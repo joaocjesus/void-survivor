@@ -52,7 +52,7 @@
                 <li>Move with WASD / Arrows or left stick on a gamepad (basic controller support).</li>
                 <li>Bolts auto-fire toward the nearest enemy.</li>
                 <li>Collect blue/purple XP gems to level up and choose upgrades.</li>
-                <li>Purple (elite) gems grant 10× XP.</li>
+                <li>Purple boss gems grant 5× XP.</li>
                 <li>Shards (orange diamonds) fund permanent meta upgrades; elites always drop one.</li>
                 <li>Press Tab to toggle detailed run stats.</li>
                 <li>Avoid enemies; red contact damages you. Regeneration & upgrades help you survive.</li>
@@ -81,6 +81,13 @@
                     <div class="controller-option-note">Supports the current GameSir-style layout: left stick on axes 1/2 and D-pad on axis 0. This is the only controller profile supported right now.</div>
                 </div>
                 <div class="settings-note">Keyboard controls are always available.</div>
+            </div>
+            <div class="settings-group">
+                <div class="settings-row">
+                    <label for="debugPanelEnabled">Debug Panel</label>
+                    <input id="debugPanelEnabled" type="checkbox" />
+                </div>
+                <div class="settings-note">Shows run-only debug controls in the lower-right corner.</div>
             </div>
             <div class="debugSection" style="display: none;"
                 style="margin-top:28px; border-top:1px solid rgba(255,255,255,.08); padding-top:18px;">
@@ -201,6 +208,19 @@
         <strong>Run Stats</strong>
         <div id="statsContent"></div>
         <div class="stats-hint">(Press Tab to toggle)</div>
+    </div>
+    <div id="debugRunPanel" class="debug-run-panel" style="display:none;">
+        <div class="debug-run-title">Debug</div>
+        <label class="debug-run-check"><input id="debugInvulnerable" type="checkbox" /> Invulnerable</label>
+        <div class="debug-run-grid">
+            <button id="debugAddEnemy">+ Enemy</button>
+            <button id="debugRemoveEnemy">- Enemy</button>
+            <button id="debugAddBoss">+ Boss</button>
+            <button id="debugRemoveBoss">- Boss</button>
+            <button id="debugDamageDown">- Damage</button>
+            <button id="debugDamageUp">+ Damage</button>
+        </div>
+        <button id="debugLevelUp" class="debug-run-wide">Level Up</button>
     </div>
     <script type="module" src="/src/main.ts"></script>
     <div id="toastRoot" class="toast-container" aria-live="polite" aria-atomic="true"></div>

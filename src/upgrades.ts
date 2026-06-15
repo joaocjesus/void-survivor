@@ -1,6 +1,7 @@
 import { UpgradeDef, OfferedUpgrade, GameState, Entity, PlayerStartStats } from './types';
 import { POWERS_VALUES } from './constants/balance';
 import { CARDS, cardInfo, effRarityWeight, RARITIES, rarityValue, type CardId, type Rarity } from './constants/cards';
+import { nextPickupRange } from './balanceUtils';
 
 // Mutator receives the player, this pick's rarity magnitude `v` (from the card's
 // values in constants/cards.ts), and the run's base stats. The builder pulls the
@@ -26,7 +27,7 @@ export const UPGRADES: UpgradeDef[] = [
     card('boltSpeed', (p, v, b) => { p.boltSpeed = (p.boltSpeed || b.boltSpeed) + b.boltSpeed * v / 100; }),
     card('boltLifespan', (p, v) => { p.boltLifespanMult = (p.boltLifespanMult ?? 1) + v / 100; }),
     card('hp', (p, v) => { p.maxHp = (p.maxHp || 100) + v; p.hp = (p.hp || 0) + v; }),
-    card('pickupRange', (p, v, b) => { p.pickupRange = (p.pickupRange || b.pickupRange) + b.pickupRange * v / 100; }),
+    card('pickupRange', (p, v, b) => { p.pickupRange = nextPickupRange(p.pickupRange || b.pickupRange, b.pickupRange, v); }),
     card('regen', (p, v) => { p.regen = (p.regen || 0) + v; }),
     card('multiShot', (p, v) => { p.multishot = (p.multishot || 0) + v; }),
     card('auraRadius', (p, v) => { p.auraLevel = (p.auraLevel || 0) + 1; p.auraRadiusPct = (p.auraRadiusPct ?? 100) + v; }),

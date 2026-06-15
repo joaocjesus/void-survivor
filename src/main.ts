@@ -10,6 +10,8 @@ import { getActivePad, markControllerInput, readGamepadDirections, setupPointerI
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
+const DEBUG_PANEL_KEY = 'voidsurvivor_debug_panel_enabled';
+let debugPanelEnabled = loadDebugPanelEnabled();
 
 function renderMeta() {
     const list = document.getElementById('metaList');
@@ -72,6 +74,16 @@ function setHudVisible(visible: boolean) {
         const el = document.getElementById(id);
         if (el) el.style.display = visible ? '' : 'none';
     }
+    updateDebugRunPanel();
+}
+
+function loadDebugPanelEnabled(): boolean {
+    try { return localStorage.getItem(DEBUG_PANEL_KEY) === 'true'; } catch { return false; }
+}
+
+function saveDebugPanelEnabled(enabled: boolean) {
+    debugPanelEnabled = enabled;
+    try { localStorage.setItem(DEBUG_PANEL_KEY, enabled ? 'true' : 'false'); } catch { }
 }
 
 function startRun() {
@@ -86,6 +98,7 @@ function startRun() {
     }
     const startStats = buildStartStats(meta);
     currentGame = new Game(root, startStats, meta, onRunEnd);
+    updateDebugRunPanel();
 }
 
 function onRunEnd(result: { time: number; kills: number; shards: number; }) {
@@ -154,11 +167,42 @@ function wireMenu() {
     };
     try { console.info('[meta] Refund wiring complete', { btn: !!document.getElementById('btnRefundMeta') }); } catch { }
     wireAudioSettings();
+    wireDebugRunPanel();
     window.addEventListener('voidsurvivor-open-settings', () => {
         settingsReturnTarget = 'pause';
         hide('mainMenu'); hide('metaMenu'); hide('instructionsMenu'); hide('statsMenu'); hide('debugTestMenu');
         show('settingsMenu');
     });
+    window.addEventListener('voidsurvivor-debug-state', updateDebugRunPanel);
+}
+
+function updateDebugRunPanel() {
+    const panel = document.getElementById('debugRunPanel') as HTMLElement | null;
+    const inv = document.getElementById('debugInvulnerable') as HTMLInputElement | null;
+    const toggle = document.getElementById('debugPanelEnabled') as HTMLInputElement | null;
+    if (toggle) toggle.checked = debugPanelEnabled;
+    if (!panel) return;
+    const visible = debugPanelEnabled && !!currentGame && currentGame.isRunActive();
+    panel.style.display = visible ? 'block' : 'none';
+    if (inv) inv.checked = currentGame?.isDebugInvulnerable() ?? false;
+}
+
+function wireDebugRunPanel() {
+    const toggle = document.getElementById('debugPanelEnabled') as HTMLInputElement | null;
+    const inv = document.getElementById('debugInvulnerable') as HTMLInputElement | null;
+    toggle?.addEventListener('change', () => {
+        saveDebugPanelEnabled(!!toggle.checked);
+        updateDebugRunPanel();
+    });
+    inv?.addEventListener('change', () => currentGame?.setDebugInvulnerable(!!inv.checked));
+    document.getElementById('debugAddEnemy')?.addEventListener('click', () => currentGame?.debugAddEnemy());
+    document.getElementById('debugRemoveEnemy')?.addEventListener('click', () => currentGame?.debugRemoveEnemy());
+    document.getElementById('debugAddBoss')?.addEventListener('click', () => currentGame?.debugAddBoss());
+    document.getElementById('debugRemoveBoss')?.addEventListener('click', () => currentGame?.debugRemoveBoss());
+    document.getElementById('debugDamageDown')?.addEventListener('click', () => currentGame?.debugAdjustDamage(-5));
+    document.getElementById('debugDamageUp')?.addEventListener('click', () => currentGame?.debugAdjustDamage(5));
+    document.getElementById('debugLevelUp')?.addEventListener('click', () => currentGame?.debugLevelUp());
+    updateDebugRunPanel();
 }
 
 function wireAudioSettings() {
@@ -349,6 +393,7 @@ function bootstrap() {
         setHudVisible(true);
         const startStats = buildStartStats(meta);
         currentGame = new Game(root, startStats, meta, onRunEnd);
+        updateDebugRunPanel();
     });
     // Handle quitting mid-run from pause menu
     window.addEventListener('voidsurvivor-quit', () => {
@@ -362,6 +407,7 @@ function bootstrap() {
         hide('metaMenu'); hide('instructionsMenu'); hide('settingsMenu');
         show('mainMenu');
         setHudVisible(false);
+        updateDebugRunPanel();
     });
 }
 

@@ -105,4 +105,12 @@ describe('applyUpgradeChoice', () => {
         applyUpgradeChoice(gs, life, 'common'); // +10% -> 1.2
         expect(p.boltLifespanMult).toBeCloseTo(1.2, 6);
     });
+
+    it('magnet uses a curved range gain instead of tiny base-linear bumps', () => {
+        const gs = makeState(() => 0.1);
+        const p = gs.entities.get(0)!;
+        const magnet = UPGRADES.find(u => u.id === 'pickupRange')!;
+        applyUpgradeChoice(gs, magnet, 'common');
+        expect(p.pickupRange).toBeGreaterThan(70);
+    });
 });

@@ -18,6 +18,8 @@ import playerSpritesUrl from '../assets/player-sprites.png';
 const playerSpriteTexturePromise: Promise<PIXI.Texture | null> =
     PIXI.Assets.load(playerSpritesUrl).catch(() => null);
 
+const Z_PLAYER = 40;
+
 export class Game {
     app!: PIXI.Application;
     gs!: GameState;
@@ -39,6 +41,7 @@ export class Game {
     private destroyed = false;
     private gameOverKeyCleanup?: () => void;
     private pauseKeyCleanup?: () => void;
+    private debugInvulnerable = false;
 
     private endCb: (result: { time: number; kills: number; shards: number; }) => void;
     constructor(parent: HTMLElement, startStats: PlayerStartStats, meta: MetaSave, endCb: (result: { time: number; kills: number; shards: number; }) => void) {
@@ -54,6 +57,7 @@ export class Game {
             return;
         }
         parent.appendChild(this.app.canvas);
+        this.app.stage.sortableChildren = true;
         // Attach static background
         createBackground(this.app);
 
@@ -105,6 +109,7 @@ export class Game {
         player.auraG = aura;
         player.orbitG = new PIXI.Container();
         playerG.addChild(player.orbitG);
+        playerG.zIndex = Z_PLAYER;
         playerG.x = player.x; playerG.y = player.y;
         this.app.stage.addChild(playerG);
         this.sprites.set(player.id, playerG);
@@ -341,14 +346,25 @@ export class Game {
     private killMob(mob: Entity) {
         this.gs.kills++;
         const elite = mob.isElite || false;
+        if (elite) {
+            const angle = this.gs.rng() * Math.PI * 2;
+            const offset = mob.radius + 12;
+            this.spawnXp(mob.x + Math.cos(angle) * offset, mob.y + Math.sin(angle) * offset, 10, true);
+            rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, mob.x, mob.y, true, {
+                x: mob.x - Math.cos(angle) * offset,
+                y: mob.y - Math.sin(angle) * offset,
+            });
+            return;
+        }
         const droppedShard = rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, mob.x, mob.y, elite);
         if (!droppedShard) {
-            this.spawnXp(mob.x, mob.y, elite ? 20 : 2, elite);
+            this.spawnXp(mob.x, mob.y, 2, false);
         }
     }
 
     damagePlayer(amount: number) {
         if (!this.gs.runActive) return;
+        if (this.debugInvulnerable) return;
         const p = this.gs.entities.get(this.gs.playerId)!;
         if (p.invuln && p.invuln > 0) return;
         p.hp = Math.max(0, (p.hp || 0) - amount);
@@ -362,6 +378,7 @@ export class Game {
         if (!this.gs.runActive) return;
         this.gs.paused = true;
         this.gs.runActive = false;
+        window.dispatchEvent(new CustomEvent('voidsurvivor-debug-state'));
         if (this.upgradeModal) {
             // hide main menu if still visible to avoid overlap
             const mainMenu = document.getElementById('mainMenu');
@@ -762,6 +779,55 @@ export class Game {
     spawnShard(x: number, y: number, value: number) { spawnShard(this.gs, { app: this.app, sprites: this.sprites }, x, y, value); }
     rollShardDrop(x: number, y: number, elite: boolean) { return rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, x, y, elite); }
     spawnElite() { spawnElite(this.gs, { app: this.app, sprites: this.sprites }); }
+
+    setDebugInvulnerable(enabled: boolean) { this.debugInvulnerable = enabled; }
+    isDebugInvulnerable() { return this.debugInvulnerable; }
+    isRunActive() { return !this.gs || this.gs.runActive; }
+    debugAddEnemy() { spawnMob(this.gs, { app: this.app, sprites: this.sprites }, this.debugSpawnPoint(120, 12)); }
+    debugAddBoss() { spawnElite(this.gs, { app: this.app, sprites: this.sprites }, this.debugSpawnPoint(150, 16)); }
+    debugRemoveEnemy() { this.removeDebugMob(false); }
+    debugRemoveBoss() { this.removeDebugMob(true); }
+    debugAdjustDamage(delta: number) {
+        const player = this.gs.entities.get(this.gs.playerId);
+        if (!player) return;
+        player.damage = Math.max(1, Math.round((player.damage || 1) + delta));
+        this.updateStatsOverlay();
+    }
+    debugLevelUp() {
+        if (this.gs.paused || !this.gs.runActive) return;
+        this.gs.xp = this.gs.xpNeeded;
+        this.levelUp();
+        this.updateHud();
+        this.updateStatsOverlay();
+    }
+
+    private removeDebugMob(elite: boolean) {
+        const player = this.gs.entities.get(this.gs.playerId);
+        let best: Entity | undefined;
+        let bestDist = Infinity;
+        for (const e of this.gs.entities.values()) {
+            if (e.kind !== 'mob' || !!e.isElite !== elite) continue;
+            const d = player ? distSq(player.x, player.y, e.x, e.y) : e.id;
+            if (d < bestDist) { bestDist = d; best = e; }
+        }
+        if (!best) return;
+        this.gs.entities.delete(best.id);
+        const sprite = this.sprites.get(best.id);
+        if (sprite) { sprite.parent?.removeChild(sprite); this.sprites.delete(best.id); }
+    }
+
+    private debugSpawnPoint(distance: number, radius: number) {
+        const player = this.gs.entities.get(this.gs.playerId);
+        const w = this.app.renderer.width;
+        const h = this.app.renderer.height;
+        const margin = radius + 12;
+        const baseX = player?.x ?? w / 2;
+        const baseY = player?.y ?? h / 2;
+        const angle = this.gs.rng() * Math.PI * 2;
+        const x = Math.max(margin, Math.min(w - margin, baseX + Math.cos(angle) * distance));
+        const y = Math.max(margin, Math.min(h - margin, baseY + Math.sin(angle) * distance));
+        return { x, y };
+    }
 
     updateStatsOverlay() { updateStatsOverlay(this.gs); }
 }

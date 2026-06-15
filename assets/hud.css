@@ -336,6 +336,67 @@
     pointer-events: auto;
 }
 
+.debug-run-panel {
+    position: fixed;
+    right: 14px;
+    bottom: 18px;
+    z-index: 14;
+    width: 210px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    background: rgba(10, 13, 16, .72);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+    color: #edf5f8;
+    font-size: 12px;
+    letter-spacing: .2px;
+    pointer-events: auto;
+}
+
+.debug-run-title {
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #9fd2ff;
+}
+
+.debug-run-check {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 10px;
+    color: #dfe9f1;
+}
+
+.debug-run-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.debug-run-panel button {
+    min-height: 30px;
+    border: 1px solid rgba(120, 170, 205, .35);
+    border-radius: 6px;
+    background: rgba(37, 49, 59, .92);
+    color: #e9f4fb;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.debug-run-panel button:hover {
+    background: rgba(52, 68, 82, .96);
+}
+
+.debug-run-wide {
+    width: 100%;
+    margin-top: 6px;
+}
+
 @media (max-width: 760px) {
     #statsOverlay {
         left: 8px;

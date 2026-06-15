@@ -31,8 +31,9 @@ export const RARITY_WEIGHTS: Record<Rarity, number> = {
 // `minRarity` defaults to common. `isPower` flags active abilities (extra card
 // styling). `values` is the per-pick magnitude by tier; semantics per card:
 //   additive stats (damage/hp/regen/magicOrbDamage) -> flat amount added
-//   percent stats (attackSpeed/moveSpeed/boltSpeed/boltLifespan/pickupRange/
+//   percent stats (attackSpeed/moveSpeed/boltSpeed/boltLifespan/
 //     auraRadius/magicOrbSpeed) -> percentage points of base (linear, +10 -> 100->110->120)
+//   pickupRange -> rarity-scaled curve in balanceUtils (larger early gains, tapered later)
 //   magicOrbs -> orbs added; multiShot -> extra bolts added
 export interface CardInfo {
     name: string;
@@ -72,7 +73,7 @@ export const CARDS = {
         values: { common: 10, uncommon: 20, rare: 30, epic: 40, legendary: 50 },
     },
     pickupRange: {
-        name: 'Magnet', description: 'Increase pickup range', // +% of base
+        name: 'Magnet', description: 'Increase pickup range', // curve from rarity value
         values: { common: 20, uncommon: 40, rare: 60, epic: 90, legendary: 120 },
     },
     auraRadius: {

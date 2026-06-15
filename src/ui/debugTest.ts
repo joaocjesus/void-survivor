@@ -5,7 +5,8 @@ import { RARITIES, RARITY_ORDER, cardMinRarity, type CardId, type Rarity } from 
 import { getActivePad, readGamepadDirections } from '../game/input';
 import type { Entity, MetaSave } from '../types';
 
-const MAX_DEBUG_LEVEL = 15;
+const MAX_DEBUG_LEVEL = 50;
+const DEFAULT_DEBUG_MAX_LEVEL = 3;
 
 let filtersReady = false;
 let tabsReady = false;
@@ -148,6 +149,7 @@ function setupFilters(meta: MetaSave) {
         minSel.appendChild(opt(String(i), i === 0 ? '0 (fresh)' : String(i)));
         maxSel.appendChild(opt(String(i), i === 0 ? '0 (fresh)' : String(i)));
     }
+    maxSel.value = String(DEFAULT_DEBUG_MAX_LEVEL);
     for (const s of [cardSel, raritySel, minSel, maxSel]) s.addEventListener('change', () => renderDebugTestPanel(meta));
 }
 
@@ -187,14 +189,14 @@ export function renderDebugTestPanel(meta: MetaSave) {
 
 function addCard(root: HTMLElement, upgrade: (typeof UPGRADES)[number], base: ReturnType<typeof buildStartStats>, rarity: Rarity, level: number) {
     const player = makePlayer(base);
-    const tmpGs = { entities: new Map([[0, player]]), playerId: 0 } as any;
+    const tmpGs = { entities: new Map([[0, player]]), playerId: 0, startStats: base } as any;
     for (let i = 0; i < level; i++) upgrade.apply(tmpGs, rarity);
 
     const wrap = document.createElement('div');
     wrap.className = 'debug-card-preview';
     const title = document.createElement('div');
     title.className = 'debug-card-label';
-    title.textContent = `${upgrade.name} · ${rarity}${level ? ` · L${level}` : ''}`;
+    title.textContent = `${upgrade.name} · ${rarity} · L${level}`;
     const card = renderUpgradeCard(upgrade, { player, base, rarity, increments: level });
     card.classList.add('debugPreviewCard');
     wrap.appendChild(title);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nextXpNeeded, spawnIntervalAt, auraRadiusAt, auraDpsAt } from '../balanceUtils';
+import { nextXpNeeded, spawnIntervalAt, auraRadiusAt, auraDpsAt, pickupRangeGain, nextPickupRange } from '../balanceUtils';
 import { XP_CURVE_MULT, XP_CURVE_FLAT, SPAWN_INTERVAL_START, SPAWN_INTERVAL_MIN, POWERS_VALUES, POWERS_UPGRADE_VALUES } from '../constants/balance';
 
 describe('balance utils', () => {
@@ -27,5 +27,16 @@ describe('balance utils', () => {
         const d1 = auraDpsAt(1);
         const d3 = auraDpsAt(3);
         expect(d3).toBeCloseTo(d1 * 3);
+    });
+    it('pickup range curve makes early magnet upgrades noticeable and tapers later', () => {
+        const base = 50;
+        const oldLinearCommon = base * 20 / 100;
+        const firstCommonGain = pickupRangeGain(base, base, 20);
+        const lateCommonGain = pickupRangeGain(250, base, 20);
+
+        expect(firstCommonGain).toBeGreaterThan(oldLinearCommon * 2);
+        expect(lateCommonGain).toBeGreaterThan(oldLinearCommon);
+        expect(lateCommonGain).toBeLessThan(firstCommonGain);
+        expect(nextPickupRange(base, base, 20)).toBeCloseTo(base + firstCommonGain);
     });
 });

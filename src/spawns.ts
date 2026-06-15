@@ -9,31 +9,38 @@ export interface RenderCtx {
     sprites: Map<number, PIXI.Container>;
 }
 
-export function spawnMob(gs: GameState, ctx: RenderCtx) {
+const Z_PICKUP = 10;
+const Z_MOB = 30;
+const Z_BOLT = 35;
+const Z_PARTICLE = 45;
+
+interface SpawnPoint { x: number; y: number; }
+
+export function spawnMob(gs: GameState, ctx: RenderCtx, point?: SpawnPoint) {
     const id = gs.nextEntityId++;
     const player = gs.entities.get(gs.playerId)!;
     const angle = gs.rng() * Math.PI * 2;
     const base = Math.max(ctx.app.renderer.width, ctx.app.renderer.height) * 0.6;
     const spawnDist = base + gs.rng() * 120;
-    const sx = player.x + Math.cos(angle) * spawnDist;
-    const sy = player.y + Math.sin(angle) * spawnDist;
+    const sx = point?.x ?? player.x + Math.cos(angle) * spawnDist;
+    const sy = point?.y ?? player.y + Math.sin(angle) * spawnDist;
     const hp = 8 + Math.floor(gs.time * 0.25);
     const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 12, kind: 'mob', hp, maxHp: hp, damage: 4, speed: 36 + gs.rng() * 22 };
     gs.entities.set(id, e);
     const g = new PIXI.Container();
     const body = new PIXI.Graphics(); body.circle(0, 0, e.radius).fill({ color: 0x8b1a1a }).stroke({ color: 0xff4d4d, width: 2 });
     const hpRing = new PIXI.Graphics(); g.addChild(body); g.addChild(hpRing); e.hpRing = hpRing;
-    g.x = sx; g.y = sy; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+    g.zIndex = Z_MOB; g.x = sx; g.y = sy; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
 
-export function spawnElite(gs: GameState, ctx: RenderCtx) {
+export function spawnElite(gs: GameState, ctx: RenderCtx, point?: SpawnPoint) {
     const id = gs.nextEntityId++;
     const player = gs.entities.get(gs.playerId)!;
     const angle = gs.rng() * Math.PI * 2;
     const base = Math.max(ctx.app.renderer.width, ctx.app.renderer.height) * 0.6;
     const spawnDist = base + gs.rng() * 140;
-    const sx = player.x + Math.cos(angle) * spawnDist;
-    const sy = player.y + Math.sin(angle) * spawnDist;
+    const sx = point?.x ?? player.x + Math.cos(angle) * spawnDist;
+    const sy = point?.y ?? player.y + Math.sin(angle) * spawnDist;
     const hp = 120 + Math.floor(gs.time * 1.2);
     const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 16, kind: 'mob', hp, maxHp: hp, damage: 10, speed: 30 + gs.rng() * 15, isElite: true };
     gs.entities.set(id, e);
@@ -43,7 +50,7 @@ export function spawnElite(gs: GameState, ctx: RenderCtx) {
     const hpRing = new PIXI.Graphics();
     const glow = new PIXI.Graphics(); glow.rect(-e.radius - 6, -e.radius - 6, (e.radius + 6) * 2, (e.radius + 6) * 2).fill({ color: 0x9c27b0, alpha: 0.05 });
     g.addChild(glow); g.addChild(body); g.addChild(hpRing); e.hpRing = hpRing;
-    g.x = sx; g.y = sy; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+    g.zIndex = Z_MOB; g.x = sx; g.y = sy; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
 
 export function spawnXp(gs: GameState, ctx: RenderCtx, x: number, y: number, value: number, elite = false) {
@@ -61,8 +68,18 @@ export function spawnXp(gs: GameState, ctx: RenderCtx, x: number, y: number, val
     const glowRadius = e.radius + (elite ? 9 : 7);
     glow.circle(0, 0, glowRadius).fill({ color: baseColor, alpha: elite ? 0.12 : 0.08 });
     const gem = new PIXI.Graphics();
-    gem.circle(0, 0, e.radius + (elite ? 1 : 0)).fill({ color: baseColor }).stroke({ color: strokeColor, width: elite ? 2 : 1 });
-    g.addChild(glow); g.addChild(gem);
+    if (elite) {
+        gem.circle(0, 0, e.radius + 2).fill({ color: baseColor }).stroke({ color: strokeColor, width: 2 });
+        const ring = new PIXI.Graphics();
+        ring.circle(0, 0, e.radius + 5).stroke({ color: 0xffe082, width: 1.5, alpha: 0.75 });
+        const shine = new PIXI.Graphics();
+        shine.circle(-2, -2, 1.8).fill({ color: 0xf3e5f5, alpha: 0.9 });
+        g.addChild(glow); g.addChild(ring); g.addChild(gem); g.addChild(shine);
+    } else {
+        gem.circle(0, 0, e.radius).fill({ color: baseColor }).stroke({ color: strokeColor, width: 1 });
+        g.addChild(glow); g.addChild(gem);
+    }
+    g.zIndex = Z_PICKUP;
     g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
 
@@ -99,7 +116,7 @@ export function spawnShard(gs: GameState, ctx: RenderCtx, x: number, y: number, 
         .lineTo(-3.5, -2)
         .lineTo(0, -5)
         .fill({ color: 0xf57c00, alpha: 0.45 });
-    g.addChild(glow); g.addChild(core); g.addChild(facet); g.addChild(shade); g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+    g.zIndex = Z_PICKUP; g.addChild(glow); g.addChild(core); g.addChild(facet); g.addChild(shade); g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
 
 // Spread applied to duplicate shots when there are fewer in-range enemies than shots.
@@ -124,7 +141,7 @@ export function fireBolt(gs: GameState, ctx: RenderCtx) {
         gs.entities.set(id, e);
         const g = new PIXI.Graphics();
         g.roundRect(-6, -2, 12, 4, 2).fill({ color: 0xffec8d }).stroke({ color: 0xffd54f, width: 1 });
-        g.x = player.x; g.y = player.y; g.rotation = angle; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+        g.zIndex = Z_BOLT; g.x = player.x; g.y = player.y; g.rotation = angle; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
     }
     playSound('shoot');
 }
@@ -136,18 +153,22 @@ export function spawnParticle(gs: GameState, ctx: RenderCtx, x: number, y: numbe
     const ang = Math.random() * Math.PI * 2;
     const e: Entity = { id, x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, radius: 2, kind: 'particle', life, alpha: 1 };
     gs.entities.set(id, e);
-    const g = new PIXI.Graphics(); g.circle(0, 0, e.radius).fill({ color, alpha: 1 }); g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+    const g = new PIXI.Graphics(); g.zIndex = Z_PARTICLE; g.circle(0, 0, e.radius).fill({ color, alpha: 1 }); g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
 
 export function spawnHitBurst(gs: GameState, ctx: RenderCtx, x: number, y: number, color: number, count: number) {
     for (let i = 0; i < count; i++) spawnParticle(gs, ctx, x, y, color);
 }
 
-export function rollShardDrop(gs: GameState, ctx: RenderCtx, x: number, y: number, elite: boolean): boolean {
+export function rollShardDrop(gs: GameState, ctx: RenderCtx, x: number, y: number, elite: boolean, point?: SpawnPoint): boolean {
     const drop = elite || (gs.rng() < 0.05);
     if (!drop) return false;
     const baseVal = 1 + Math.floor(gs.time / 60 * 0.6) + Math.floor(gs.kills / 200);
     const value = elite ? baseVal * 10 : baseVal;
+    if (point) {
+        spawnShard(gs, ctx, point.x, point.y, value);
+        return true;
+    }
     const angle = gs.rng() * Math.PI * 2;
     const offset = elite ? 18 : 14;
     spawnShard(gs, ctx, x + Math.cos(angle) * offset, y + Math.sin(angle) * offset, value);

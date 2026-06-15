@@ -3,6 +3,7 @@ import { DARK_TEXTURE_PRESETS } from '../backgroundPresets';
 import { darkTextureDataURL } from '../game/background';
 import { Entity, PlayerStartStats, UpgradeDef } from '../types';
 import { rarityValue, type CardId, type Rarity } from '../constants/cards';
+import { nextPickupRange } from '../balanceUtils';
 
 // Powers that start locked: their first pick is the "New Unlock" card.
 const UNLOCKABLE_IDS = new Set(['auraRadius', 'magicOrbs']);
@@ -124,8 +125,9 @@ function statTransition(
             return row('Max HP', String(cur), String(cur + v), `+${v}`);
         }
         case 'pickupRange': {
-            const curPct = pct(player.pickupRange ?? base.pickupRange, base.pickupRange);
-            return row('Pickup Range', `${curPct.toFixed(0)}%`, `${(curPct + v).toFixed(0)}%`, pctInc);
+            const cur = player.pickupRange ?? base.pickupRange;
+            const next = nextPickupRange(cur, base.pickupRange, v);
+            return row('Pickup Range', `${cur.toFixed(0)} px`, `${next.toFixed(0)} px`, `+${(next - cur).toFixed(0)} px`);
         }
         case 'regen': {
             const cur = player.regen ?? 0;
@@ -185,7 +187,7 @@ function statFooter(id: string, player: Entity, base: PlayerStartStats, rarity: 
         }
         case 'pickupRange': {
             const cur = player.pickupRange ?? base.pickupRange;
-            const next = cur + base.pickupRange * v / 100;
+            const next = nextPickupRange(cur, base.pickupRange, v);
             return note(pct(cur, base.pickupRange), cur, pct(next, base.pickupRange), next, 'px');
         }
         case 'auraRadius': {
