@@ -8,8 +8,19 @@ export function formatXp(v: number): string {
     return rounded.toFixed(2);
 }
 
+export function formatRunTime(seconds: number): string {
+    const total = Math.max(0, Math.floor(seconds));
+    const s = total % 60;
+    const minutesTotal = Math.floor(total / 60);
+    const m = minutesTotal % 60;
+    const h = Math.floor(minutesTotal / 60);
+    const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+    const ss = String(s).padStart(2, '0');
+    return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
 export function updateHud(gs: GameState) {
-    const timeEl = document.getElementById('time'); if (timeEl) timeEl.textContent = String(Math.floor(gs.time));
+    const timeEl = document.getElementById('time'); if (timeEl) timeEl.textContent = formatRunTime(gs.time);
     const killsEl = document.getElementById('kills'); if (killsEl) killsEl.textContent = String(gs.kills);
     const shardTotal = gs.meta.shards + (gs.runShards || 0);
     const shardEl = document.getElementById('metaShards'); if (shardEl) shardEl.textContent = `Shards: ${shardTotal}`;
