@@ -6,7 +6,7 @@ import { spawnMob, spawnElite, spawnXp, fireBolt, spawnParticle, spawnHitBurst, 
 import { randomRng } from './rng';
 import { distSq } from './math';
 import { createBackground } from './game/background';
-import { updateHud, updateStatsOverlay } from './game/hud';
+import { formatRunTime, updateHud, updateStatsOverlay } from './game/hud';
 import { createInputState, getActivePad, readGamepadDirections, setupKeyboard, setupGamepad } from './game/input';
 import { FIRE_INTERVAL_BASE, POWERS_VALUES } from './constants/balance';
 import { nextXpNeeded, spawnIntervalAt, auraDpsAt } from './balanceUtils';
@@ -370,12 +370,12 @@ export class Game {
             const bestTime = Math.max(this.gs.meta.stats.bestTime, this.gs.time);
             this.upgradeModal.innerHTML = `<div class="panel gameover-panel" style="text-align:center"><h2>Game Over</h2>
                 <div class="gameover-summary">
-                    <div><span>Time</span><strong>${Math.floor(this.gs.time)}s</strong></div>
+                    <div><span>Time</span><strong>${formatRunTime(this.gs.time)}</strong></div>
                     <div><span>Level</span><strong>${this.gs.level}</strong></div>
                     <div><span>Kills</span><strong>${this.gs.kills}</strong></div>
                     <div><span>Shards</span><strong>+${shardsGained}</strong></div>
                     <div><span>Total</span><strong>${totalAfterRun}</strong></div>
-                    <div><span>Best</span><strong>${Math.floor(bestTime)}s</strong></div>
+                    <div><span>Best</span><strong>${formatRunTime(bestTime)}</strong></div>
                 </div>
                 <div class='goButtons'><button id='restartBtn'>Restart</button><button id='mainMenuBtn'>Main Menu</button></div><div class='gameover-note'>Press A / Enter to activate focused button</div></div>`;
             const restart = document.getElementById('restartBtn') as HTMLButtonElement | null;

@@ -186,6 +186,19 @@ body.controller-input .menu-panel button.debug:not(.focused):hover {
     margin-top: 8px
 }
 
+.settings-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px
+}
+
+.settings-actions button {
+    width: auto;
+    margin: 0;
+    flex: 0 1 180px
+}
+
 .debug-test-panel {
     --upgrade-card-width: 300px;
     --upgrade-card-ratio: 3 / 4;

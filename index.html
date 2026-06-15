@@ -82,7 +82,6 @@
                 </div>
                 <div class="settings-note">Keyboard controls are always available.</div>
             </div>
-            <button id="btnResetMeta" class="danger" style="margin-top:4px;">Reset Save</button>
             <div class="debugSection" style="display: none;"
                 style="margin-top:28px; border-top:1px solid rgba(255,255,255,.08); padding-top:18px;">
                 <div
@@ -93,7 +92,10 @@
                 <div style="font-size:11px; opacity:.45; margin-top:6px; line-height:1.4; max-width:260px;">Snapshots
                     let you resume mid-run for testing. Disabled in production builds.</div>
             </div>
-            <button id="btnBackSettings" class="back-btn" style="margin-top:20px;">Back</button>
+            <div class="settings-actions">
+                <button id="btnResetMeta" class="danger">Reset Save</button>
+                <button id="btnBackSettings" class="back-btn">Back</button>
+            </div>
         </div>
     </div>
     <div id="debugTestMenu" class="menu" style="display:none;">
@@ -146,7 +148,7 @@
         </div>
         <div id="statusRow">
             <div id="levelHud">Level: <span id="level">1</span></div>
-            <div class="time-line"><span id="time">0</span>s</div>
+            <div class="time-line"><span id="time">0:00</span></div>
             <div id="killsHud" class="miniHud kills-inline">
                 <div class="killsWrap">
                     <span class="killsLabel">Kills:</span>
