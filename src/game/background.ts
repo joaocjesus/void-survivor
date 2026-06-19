@@ -118,9 +118,9 @@ export function makeDarkTextureCanvas(opts?: DarkTextureOptions): HTMLCanvasElem
     return canvas;
 }
 
-export function makeDarkTexture(app: PIXI.Application, opts?: DarkTextureOptions): PIXI.Texture {
+export function makeDarkTexture(opts?: DarkTextureOptions): PIXI.Texture {
     const tex = PIXI.Texture.from(makeDarkTextureCanvas(opts));
-    tex.baseTexture.scaleMode = PIXI.SCALE_MODES.LINEAR; // smooth scaling
+    tex.source.scaleMode = 'linear'; // smooth scaling
     return tex;
 }
 
@@ -130,7 +130,7 @@ export function darkTextureDataURL(opts?: DarkTextureOptions): string {
 }
 
 export function createBackground(app: PIXI.Application) {
-    const darkTex = makeDarkTexture(app, { size: 512, ...DARK_TEXTURE_PRESETS.default.options });
+    const darkTex = makeDarkTexture({ size: 512, ...DARK_TEXTURE_PRESETS.default.options });
     const darkBg = new PIXI.TilingSprite({ texture: darkTex, width: app.renderer.width, height: app.renderer.height });
     app.stage.addChildAt(darkBg, 0);
     app.renderer.on('resize', () => {

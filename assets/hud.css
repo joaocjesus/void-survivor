@@ -28,7 +28,6 @@
 
 #killsHud {
     background: rgba(0, 0, 0, .45);
-    backdrop-filter: blur(4px);
     padding: 6px 12px;
     border-radius: 20px;
     display: flex;
@@ -62,7 +61,6 @@
     gap: 8px;
     padding: 6px 12px 6px 10px;
     background: rgba(0, 0, 0, .45);
-    backdrop-filter: blur(4px);
     border-radius: 16px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, .45);
 }
@@ -110,7 +108,6 @@
     align-items: center;
     gap: 10px;
     background: rgba(0, 0, 0, .5);
-    backdrop-filter: blur(5px);
     padding: 6px 16px 6px 14px;
     border-radius: 28px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, .55);
@@ -130,7 +127,6 @@
     width: 22px;
     height: 22px;
     background: radial-gradient(circle at 30% 30%, #ff8a80, #e53935 60%, #c62828);
-    filter: drop-shadow(0 0 5px rgba(229, 57, 53, .45));
     clip-path: polygon(50% 84%, 10% 44%, 10% 25%, 25% 10%, 40% 15%, 50% 28%, 60% 15%, 75% 10%, 90% 25%, 90% 44%);
 }
 
@@ -165,7 +161,6 @@
     bottom: 0;
     width: 100%;
     background: linear-gradient(90deg, #d32f2f, #ef5350);
-    transition: width .18s cubic-bezier(.4, .2, .2, 1);
 }
 
 @media (max-width: 760px) {
@@ -209,7 +204,6 @@
     width: 0%;
     background: linear-gradient(90deg, #46c35f, #7ddc92);
     border-radius: 999px;
-    transition: width .18s cubic-bezier(.4, .2, .2, 1);
 }
 
 #xpBarLabel {
@@ -235,7 +229,6 @@
     padding: 6px 14px 6px;
     background: rgba(0, 0, 0, .45);
     border-radius: 20px;
-    backdrop-filter: blur(4px);
     box-shadow: 0 2px 6px rgba(0, 0, 0, .45);
 }
 
@@ -248,7 +241,6 @@
     color: #dfe9ef;
     text-shadow: 0 1px 2px rgba(0, 0, 0, .65);
     background: rgba(0, 0, 0, .45);
-    backdrop-filter: blur(4px);
     padding: 8px 14px;
     border-radius: 20px;
     line-height: 1.2;
@@ -288,7 +280,6 @@
     transform: translate(-12px, -50%);
     /* initial offset will be overridden by classes */
     background: rgba(0, 0, 0, .55);
-    backdrop-filter: blur(5px);
     padding: 14px 16px 16px;
     border-radius: 16px;
     font-size: 12px;
@@ -346,7 +337,6 @@
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, .1);
     background: rgba(10, 13, 16, .72);
-    backdrop-filter: blur(6px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
     color: #edf5f8;
     font-size: 12px;

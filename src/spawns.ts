@@ -16,6 +16,16 @@ const Z_BOLT = 35;
 const Z_PARTICLE = 45;
 
 interface SpawnPoint { x: number; y: number; }
+let particleTexture: PIXI.Texture | null = null;
+
+function getParticleTexture(app: PIXI.Application) {
+    if (particleTexture) return particleTexture;
+    const g = new PIXI.Graphics();
+    g.circle(0, 0, 2).fill({ color: 0xffffff });
+    particleTexture = app.renderer.generateTexture(g);
+    g.destroy();
+    return particleTexture;
+}
 
 export function spawnMob(gs: GameState, ctx: RenderCtx, point?: SpawnPoint) {
     const id = gs.nextEntityId++;
@@ -159,7 +169,14 @@ export function spawnParticle(gs: GameState, ctx: RenderCtx, x: number, y: numbe
     const ang = Math.random() * Math.PI * 2;
     const e: Entity = { id, x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, radius: 2, kind: 'particle', life, alpha: 1 };
     gs.entities.set(id, e);
-    const g = new PIXI.Graphics(); g.zIndex = Z_PARTICLE; g.circle(0, 0, e.radius).fill({ color, alpha: 1 }); g.x = x; g.y = y; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
+    const sprite = new PIXI.Sprite(getParticleTexture(ctx.app));
+    sprite.anchor.set(0.5);
+    sprite.tint = color;
+    sprite.zIndex = Z_PARTICLE;
+    sprite.x = x;
+    sprite.y = y;
+    ctx.app.stage.addChild(sprite);
+    ctx.sprites.set(id, sprite);
 }
 
 export function spawnHitBurst(gs: GameState, ctx: RenderCtx, x: number, y: number, color: number, count: number) {

@@ -17,6 +17,9 @@ import type { PlayerShipDefinition } from './playerShips';
 import { getMouseMovementEnabled } from './settings';
 
 const Z_PLAYER = 40;
+const RENDER_RESOLUTION = 1;
+const HUD_UPDATE_INTERVAL = 1 / 12;
+const STATS_UPDATE_INTERVAL = 0.25;
 
 export class Game {
     app!: PIXI.Application;
@@ -49,6 +52,8 @@ export class Game {
     private fallbackPlayerVisual?: PIXI.Container;
     private moveTargetMarker?: PIXI.Graphics;
     private lastDebugMetricAt = 0;
+    private lastHudUpdateAt = -Infinity;
+    private lastStatsOverlayAt = -Infinity;
 
     private endCb: (result: { time: number; kills: number; shards: number; }) => void;
     constructor(parent: HTMLElement, startStats: PlayerStartStats, meta: MetaSave, endCb: (result: { time: number; kills: number; shards: number; }) => void, playerShip: PlayerShipDefinition) {
@@ -62,9 +67,10 @@ export class Game {
         await this.app.init({
             resizeTo: parent,
             background: '#121416',
-            antialias: true,
+            antialias: false,
             autoDensity: true,
-            resolution: Math.min(window.devicePixelRatio || 1, 2),
+            resolution: RENDER_RESOLUTION,
+            powerPreference: 'high-performance',
         });
         if (this.destroyed) {
             try { this.app.destroy(true); } catch { }
@@ -834,9 +840,10 @@ export class Game {
             const radius = POWERS_VALUES.AURA_BASE_RADIUS * (player.auraRadiusPct ?? 100) / 100;
             const dps = auraDpsAt(auraLevel); // centralized aura DPS calc
             const auraG = player.auraG;
-            if (auraG) {
+            if (auraG && player.auraRenderRadius !== radius) {
                 auraG.clear();
                 auraG.circle(0, 0, radius).fill({ color: 0x66ffcc, alpha: 0.15 }).stroke({ color: 0x66ffcc, width: 2, alpha: 0.5 });
+                player.auraRenderRadius = radius;
             }
             for (const m of this.gs.entities.values()) {
                 if (m.kind !== 'mob') continue;
@@ -847,7 +854,11 @@ export class Game {
                 }
             }
         } else {
-            const auraG = player.auraG; if (auraG) auraG.clear();
+            const auraG = player.auraG;
+            if (auraG && player.auraRenderRadius !== 0) {
+                auraG.clear();
+                player.auraRenderRadius = 0;
+            }
         }
 
         // Orbiting scriptures
@@ -897,10 +908,17 @@ export class Game {
             }
         }
 
-        const toRemove: number[] = [...passiveDeaths];
+        const toRemove: number[] = [];
+        const toRemoveSet = new Set<number>();
+        const markRemove = (id: number) => {
+            if (toRemoveSet.has(id)) return;
+            toRemoveSet.add(id);
+            toRemove.push(id);
+        };
+        for (const id of passiveDeaths) markRemove(id);
         for (const e of this.gs.entities.values()) {
             if (e.kind === 'player') continue;
-            if (toRemove.includes(e.id)) continue;
+            if (toRemoveSet.has(e.id)) continue;
             if (e.kind === 'mob') {
                 const contact = advanceChaserUntilContact(e, player, e.speed || 60, dt);
                 e.x = contact.x;
@@ -915,34 +933,38 @@ export class Game {
                 if (hpBar) {
                     if (e.hp! < e.maxHp! && e.hp! > 0) {
                         const pct = Math.max(0, e.hp! / (e.maxHp! || 1));
-                        const wBar = e.radius * 2 + 4;
-                        const hBar = 5;
-                        const x0 = -wBar / 2;
-                        const y0 = -e.radius - 9;
+                        if (e.hpBarPct === undefined || Math.abs(e.hpBarPct - pct) >= 0.005) {
+                            const wBar = e.radius * 2 + 4;
+                            const hBar = 5;
+                            const x0 = -wBar / 2;
+                            const y0 = -e.radius - 9;
+                            hpBar.clear();
+                            hpBar.rect(x0, y0, wBar, hBar).fill({ color: 0x262d32, alpha: 0.9 });
+                            hpBar.rect(x0 + 1, y0 + 1, (wBar - 2) * pct, hBar - 2).fill({ color: 0x4caf50 });
+                            e.hpBarPct = pct;
+                        }
+                    } else if (e.hpBarPct !== undefined) {
                         hpBar.clear();
-                        hpBar.rect(x0, y0, wBar, hBar).fill({ color: 0x262d32, alpha: 0.9 });
-                        hpBar.rect(x0 + 1, y0 + 1, (wBar - 2) * pct, hBar - 2).fill({ color: 0x4caf50 });
-                    } else {
-                        hpBar.clear();
+                        e.hpBarPct = undefined;
                     }
                 }
             } else if (e.kind === 'bolt') {
                 e.x += e.vx * dt; e.y += e.vy * dt;
                 e.life! -= dt;
-                if (e.life! <= 0) { toRemove.push(e.id); continue; }
+                if (e.life! <= 0) { markRemove(e.id); continue; }
                 for (const m of this.gs.entities.values()) {
                     if (m.kind !== 'mob') continue;
-                    if ((m.hp || 0) <= 0 || toRemove.includes(m.id)) continue;
+                    if ((m.hp || 0) <= 0 || toRemoveSet.has(m.id)) continue;
                     const r = m.radius + e.radius;
                     if (distSq(m.x, m.y, e.x, e.y) < r * r) {
                         m.hp! -= e.damage || 1;
                         spawnHitBurst(this.gs, { app: this.app, sprites: this.sprites }, e.x, e.y, 0xffd54f, 4);
                         playSound('hit');
-                        toRemove.push(e.id);
+                        markRemove(e.id);
                         if (m.hp! <= 0) {
                             this.killMob(m);
                             spawnHitBurst(this.gs, { app: this.app, sprites: this.sprites }, m.x, m.y, 0xff4d4d, 10);
-                            toRemove.push(m.id);
+                            markRemove(m.id);
                         }
                         break;
                     }
@@ -960,7 +982,7 @@ export class Game {
                     if (distSq(player.x, player.y, e.x, e.y) < (player.radius + e.radius + 4) ** 2) {
                         this.grantXp(e.value || 1);
                         playSound('pickup');
-                        toRemove.push(e.id);
+                        markRemove(e.id);
                     }
                 }
             } else if (e.kind === 'shard') {
@@ -977,14 +999,14 @@ export class Game {
                         const val = e.shardValue || 1;
                         this.gs.runShards = (this.gs.runShards || 0) + val;
                         playSound('pickup');
-                        toRemove.push(e.id);
+                        markRemove(e.id);
                     }
                 }
             } else if (e.kind === 'particle') {
                 e.x += e.vx * dt; e.y += e.vy * dt;
                 e.vx *= 0.9; e.vy *= 0.9;
                 e.life! -= dt;
-                if (e.life! <= 0) { toRemove.push(e.id); continue; }
+                if (e.life! <= 0) { markRemove(e.id); continue; }
                 e.alpha = (e.life! < 0.3) ? e.life! / 0.3 : 1;
             }
         }
@@ -1031,8 +1053,14 @@ export class Game {
             this.playerSprite.view.rotation = this.playerFacing;
         }
 
-        this.updateHud();
-        this.updateStatsOverlay();
+        if (this.gs.statsVisible && this.gs.time - this.lastStatsOverlayAt >= STATS_UPDATE_INTERVAL) {
+            this.lastStatsOverlayAt = this.gs.time;
+            this.updateStatsOverlay();
+        }
+        if (this.gs.time - this.lastHudUpdateAt >= HUD_UPDATE_INTERVAL) {
+            this.lastHudUpdateAt = this.gs.time;
+            this.updateHud();
+        }
         if (this.gs.time - this.lastDebugMetricAt >= 0.25) {
             this.lastDebugMetricAt = this.gs.time;
             window.dispatchEvent(new CustomEvent('voidsurvivor-debug-state'));

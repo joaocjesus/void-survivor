@@ -11,6 +11,7 @@ export interface AudioSettings {
 }
 
 let settings: AudioSettings = loadAudioSettings();
+let noiseBuffer: AudioBuffer | null = null;
 
 function clampVolume(v: number) {
     if (!Number.isFinite(v)) return 0.75;
@@ -81,14 +82,25 @@ function tone({ freq, dur, type = 'sine', vol = 0.25, decay = 0.002, detune = 0 
     osc.start(now); osc.stop(now + dur);
 }
 
+function getNoiseBuffer() {
+    if (!ctx) return null;
+    if (noiseBuffer && noiseBuffer.sampleRate === ctx.sampleRate) return noiseBuffer;
+    const bufferSize = Math.floor(0.15 * (ctx.sampleRate || 44100));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    }
+    noiseBuffer = buffer;
+    return noiseBuffer;
+}
+
 function noiseHit(dur = 0.18, vol = 0.22) {
     vol = effectiveVolume(vol);
     if (vol <= 0) return;
     if (!ctx) ensureCtx(); if (!ctx) return;
-    const bufferSize = 0.15 * (ctx.sampleRate || 44100);
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    const buffer = getNoiseBuffer();
+    if (!buffer) return;
     const src = ctx.createBufferSource(); src.buffer = buffer;
     const gain = ctx.createGain();
     gain.gain.value = vol;
@@ -111,17 +123,11 @@ export function playSound(id: 'shoot' | 'hit' | 'pickup' | 'level' | 'aura') {
     if (!ctx) return;
     switch (id) {
         case 'shoot':
-            if (!throttle('shoot', 40)) return;
-            // Primary low-mid body (slightly higher & louder for presence)
-            tone({ freq: 260 + Math.random() * 25, dur: 0.09, type: 'square', vol: 0.22, decay: 0.03, detune: (Math.random() - 0.5) * 25 });
-            // Add a faint upper harmonic for intelligibility
-            setTimeout(() => tone({ freq: 520 + Math.random() * 30, dur: 0.06, type: 'square', vol: 0.08, decay: 0.025, detune: (Math.random() - 0.5) * 15 }), 4);
-            // Sub layer (still quiet) for weight
-            setTimeout(() => tone({ freq: 130 + Math.random() * 15, dur: 0.05, type: 'sine', vol: 0.06, decay: 0.03 }), 6);
-            // Tiny noise click to help it cut through when many sounds overlap
-            try { noiseHit(0.045, 0.10); } catch { /* ignore */ }
+            if (!throttle('shoot', 80)) return;
+            tone({ freq: 270 + Math.random() * 20, dur: 0.075, type: 'square', vol: 0.18, decay: 0.03, detune: (Math.random() - 0.5) * 18 });
             break;
         case 'hit':
+            if (!throttle('hit', 35)) return;
             noiseHit(0.15, 0.25);
             tone({ freq: 180 + Math.random() * 40, dur: 0.12, type: 'sawtooth', vol: 0.15 });
             break;

@@ -1,5 +1,66 @@
 import { GameState } from '../types';
 
+interface HudElements {
+    time: HTMLElement | null;
+    kills: HTMLElement | null;
+    metaShards: HTMLElement | null;
+    runShards: HTMLElement | null;
+    level: HTMLElement | null;
+    xpBar: HTMLElement | null;
+    xpBarLabel: HTMLElement | null;
+    hp: HTMLElement | null;
+    hpMax: HTMLElement | null;
+    hpBar: HTMLElement | null;
+}
+
+let hudElements: HudElements | null = null;
+let statsElements: { content: HTMLElement; wrap: HTMLElement; } | null = null;
+let lastStatsVisible: boolean | undefined;
+let lastStatsHtml = '';
+
+function getById<T extends HTMLElement = HTMLElement>(id: string): T | null {
+    return document.getElementById(id) as T | null;
+}
+
+function cacheHudElements(): HudElements {
+    if (hudElements?.time?.isConnected) return hudElements;
+    hudElements = {
+        time: getById('time'),
+        kills: getById('kills'),
+        metaShards: getById('metaShards'),
+        runShards: getById('runShards'),
+        level: getById('level'),
+        xpBar: getById('xpBar'),
+        xpBarLabel: getById('xpBarLabel'),
+        hp: getById('hp'),
+        hpMax: getById('hpMax'),
+        hpBar: getById('hpBar'),
+    };
+    return hudElements;
+}
+
+function cacheStatsElements() {
+    if (statsElements?.content.isConnected && statsElements.wrap.isConnected) return statsElements;
+    const content = getById('statsContent');
+    const wrap = getById('statsOverlay');
+    statsElements = content && wrap ? { content, wrap } : null;
+    lastStatsVisible = undefined;
+    lastStatsHtml = '';
+    return statsElements;
+}
+
+function setText(el: HTMLElement | null, value: string) {
+    if (el && el.textContent !== value) el.textContent = value;
+}
+
+function setDisplay(el: HTMLElement | null, value: string) {
+    if (el && el.style.display !== value) el.style.display = value;
+}
+
+function setWidth(el: HTMLElement | null, value: string) {
+    if (el && el.style.width !== value) el.style.width = value;
+}
+
 // Formatting helpers
 export function formatXp(v: number): string {
     const rounded = Math.round(v * 100) / 100;
@@ -20,50 +81,56 @@ export function formatRunTime(seconds: number): string {
 }
 
 export function updateHud(gs: GameState) {
-    const timeEl = document.getElementById('time'); if (timeEl) timeEl.textContent = formatRunTime(gs.time);
-    const killsEl = document.getElementById('kills'); if (killsEl) killsEl.textContent = String(gs.kills);
+    const els = cacheHudElements();
+    setText(els.time, formatRunTime(gs.time));
+    setText(els.kills, String(gs.kills));
     const shardTotal = gs.meta.shards + (gs.runShards || 0);
-    const shardEl = document.getElementById('metaShards'); if (shardEl) shardEl.textContent = `Shards: ${shardTotal}`;
-    const runShardEl = document.getElementById('runShards'); if (runShardEl) runShardEl.textContent = String(gs.runShards || 0);
-    const levelEl = document.getElementById('level'); if (levelEl) levelEl.textContent = String(gs.level);
+    setText(els.metaShards, `Shards: ${shardTotal}`);
+    setText(els.runShards, String(gs.runShards || 0));
+    setText(els.level, String(gs.level));
     // XP bar
     const pctXp = (gs.xp / gs.xpNeeded) * 100;
-    const xpBarDiv = document.getElementById('xpBar') as HTMLElement | null;
-    if (xpBarDiv) xpBarDiv.style.width = pctXp + '%';
-    const xpBarLabel = document.getElementById('xpBarLabel') as HTMLElement | null;
     const statsVisible = gs.statsVisible;
-    if (xpBarLabel) {
+    setWidth(els.xpBar, pctXp + '%');
+    if (els.xpBarLabel) {
         if (statsVisible) {
-            xpBarLabel.style.display = 'block';
-            xpBarLabel.textContent = `${formatXp(gs.xp)} / ${gs.xpNeeded} (${Math.floor(pctXp)}%)`;
+            setDisplay(els.xpBarLabel, 'block');
+            setText(els.xpBarLabel, `${formatXp(gs.xp)} / ${gs.xpNeeded} (${Math.floor(pctXp)}%)`);
             const centerCovered = pctXp >= 50;
-            xpBarLabel.style.color = centerCovered ? '#07130a' : '#ffffff';
-            xpBarLabel.style.textShadow = centerCovered ? '0 1px 2px rgba(255,255,255,.4)' : '0 1px 2px rgba(0,0,0,.6)';
+            const color = centerCovered ? '#07130a' : '#ffffff';
+            const shadow = centerCovered ? '0 1px 2px rgba(255,255,255,.4)' : '0 1px 2px rgba(0,0,0,.6)';
+            if (els.xpBarLabel.style.color !== color) els.xpBarLabel.style.color = color;
+            if (els.xpBarLabel.style.textShadow !== shadow) els.xpBarLabel.style.textShadow = shadow;
         } else {
-            xpBarLabel.style.display = 'none';
+            setDisplay(els.xpBarLabel, 'none');
         }
     }
     // HP
     const player = gs.entities.get(gs.playerId);
     if (player) {
-        (document.getElementById('hp'))!.textContent = Math.round(player.hp || 0).toString();
-        (document.getElementById('hpMax'))!.textContent = Math.round(player.maxHp || 0).toString();
+        setText(els.hp, Math.round(player.hp || 0).toString());
+        setText(els.hpMax, Math.round(player.maxHp || 0).toString());
         const pct = ((player.hp || 0) / (player.maxHp || 1)) * 100;
-        const hpBar = document.getElementById('hpBar') as HTMLElement | null; if (hpBar) hpBar.style.width = pct + '%';
+        setWidth(els.hpBar, pct + '%');
     }
 }
 
 export function updateStatsOverlay(gs: GameState) {
-    const el = document.getElementById('statsContent');
-    const wrap = document.getElementById('statsOverlay');
-    if (!el || !wrap) return;
+    const els = cacheStatsElements();
+    if (!els) return;
     if (!gs.statsVisible) {
-        wrap.classList.remove('stats-visible');
-        wrap.classList.add('stats-hidden');
+        if (lastStatsVisible !== false) {
+            els.wrap.classList.remove('stats-visible');
+            els.wrap.classList.add('stats-hidden');
+            lastStatsVisible = false;
+        }
         return;
     }
-    wrap.classList.remove('stats-hidden');
-    wrap.classList.add('stats-visible');
+    if (lastStatsVisible !== true) {
+        els.wrap.classList.remove('stats-hidden');
+        els.wrap.classList.add('stats-visible');
+        lastStatsVisible = true;
+    }
     const p = gs.entities.get(gs.playerId)!;
     const rows: [string, string][] = [];
     const pct = (value: number | undefined, base: number | undefined) => `${Math.round(((value ?? base ?? 0) / (base || 1)) * 100)}%`;
@@ -86,5 +153,9 @@ export function updateStatsOverlay(gs: GameState) {
         st.textContent = `.stats-grid{display:grid;grid-template-columns:auto auto;column-gap:16px;row-gap:4px;margin-top:4px;font-size:12px}.stats-grid .stat-label{opacity:.7;padding-right:4px;}.stats-grid .stat-val{text-align:right;font-weight:600;color:#fff;}`;
         document.head.appendChild(st);
     }
-    el.innerHTML = `<div class='stats-grid'>${grid}</div>`;
+    const html = `<div class='stats-grid'>${grid}</div>`;
+    if (html !== lastStatsHtml) {
+        els.content.innerHTML = html;
+        lastStatsHtml = html;
+    }
 }

@@ -36,6 +36,8 @@ export interface Entity {
     lastOrbitHitAt?: number;
     pulse?: boolean;
     spin?: boolean;
+    auraRenderRadius?: number;
+    hpBarPct?: number;
     hpRing?: PIXI.Graphics;
     auraG?: PIXI.Graphics;
     orbitG?: PIXI.Container;

@@ -333,6 +333,11 @@ function moveMenuFocus(delta: number) {
 
 function activateFocused() { if (menuButtons[menuIndex]) menuButtons[menuIndex].click(); }
 
+function isAnyMenuVisible() {
+    return ['mainMenu', 'metaMenu', 'instructionsMenu', 'settingsMenu', 'statsMenu', 'debugTestMenu']
+        .some(id => document.getElementById(id)?.style.display !== 'none');
+}
+
 function setupMenuInput() {
     const keyHandler = (e: KeyboardEvent) => {
         lastMenuInput = 'keyboard';
@@ -368,7 +373,15 @@ function setupMenuInput() {
     let lastButtons: boolean[] = [];
     let lastAxisV = 0;
     let lastAxisH = 0;
+    const schedule = (active: boolean) => {
+        if (active) requestAnimationFrame(poll);
+        else window.setTimeout(poll, 250);
+    };
     const poll = () => {
+        if (!isAnyMenuVisible()) {
+            schedule(false);
+            return;
+        }
         collectVisibleMenuButtons();
         const gp = getActivePad();
         if (gp) {
@@ -411,10 +424,15 @@ function setupMenuInput() {
             lastAxisV = vDir;
             lastAxisH = hDir;
             lastButtons = buttons;
+            schedule(true);
+        } else {
+            lastButtons = [];
+            lastAxisV = 0;
+            lastAxisH = 0;
+            schedule(false);
         }
-        requestAnimationFrame(poll);
     };
-    requestAnimationFrame(poll);
+    schedule(false);
 }
 
 function bootstrap() {

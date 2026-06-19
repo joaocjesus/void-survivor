@@ -46,8 +46,14 @@ export function setupPointerInputRestore() {
 // (which happens after the first button press for security reasons).
 export function getActivePad(): Gamepad | null {
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    const connected = Array.from(pads).filter((p): p is Gamepad => !!p && p.connected !== false);
-    return connected.find(p => p.mapping === 'standard') ?? connected[0] ?? null;
+    let first: Gamepad | null = null;
+    for (let i = 0; i < pads.length; i++) {
+        const pad = pads[i];
+        if (!pad || pad.connected === false) continue;
+        if (pad.mapping === 'standard') return pad;
+        if (!first) first = pad;
+    }
+    return first;
 }
 
 function axis(axes: readonly number[], index: number): number {
@@ -146,8 +152,16 @@ export function setupGamepad(input: InputState, gs: GameState, helpers: { onPaus
     let lastHAxisDir = 0;
     let disposed = false;
     let rafId = 0;
+    let idleTimer = 0;
+    const schedule = (active: boolean) => {
+        if (disposed) return;
+        if (active) rafId = requestAnimationFrame(poll);
+        else idleTimer = window.setTimeout(poll, 250);
+    };
     const poll = () => {
         if (disposed) return;
+        rafId = 0;
+        idleTimer = 0;
         const gp = getActivePad();
         if (gp) {
             const pad = readGamepadDirections(gp);
@@ -176,16 +190,20 @@ export function setupGamepad(input: InputState, gs: GameState, helpers: { onPaus
                 if (buttons[0] && !lastButtons[0]) helpers.onUpgradeConfirm();
             }
             lastButtons = buttons;
+            schedule(true);
         } else if (helpers.lastInputDeviceRef.v === 'gamepad') {
             clearDirectionalInput(input);
             lastButtons = [];
             lastHAxisDir = 0;
+            schedule(false);
+        } else {
+            schedule(false);
         }
-        rafId = requestAnimationFrame(poll);
     };
-    rafId = requestAnimationFrame(poll);
+    schedule(false);
     return () => {
         disposed = true;
         if (rafId) cancelAnimationFrame(rafId);
+        if (idleTimer) clearTimeout(idleTimer);
     };
 }
