@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import { createInputState, readGamepadDirections, setupKeyboard } from '../game/input';
+import { createInputState, hasDirectionalInput, readGamepadDirections, setupKeyboard } from '../game/input';
 import type { GameState } from '../types';
 
 function pad(
@@ -88,6 +88,14 @@ describe('readGamepadDirections', () => {
 });
 
 describe('setupKeyboard', () => {
+    it('reports whether directional input is active', () => {
+        const input = createInputState();
+
+        expect(hasDirectionalInput(input)).toBe(false);
+        input.right = true;
+        expect(hasDirectionalInput(input)).toBe(true);
+    });
+
     it('handles WASD movement when Caps Lock produces uppercase keys', () => {
         const input = createInputState();
         const gs = {
@@ -123,6 +131,32 @@ describe('setupKeyboard', () => {
             expect(input.left).toBe(false);
             expect(input.down).toBe(false);
             expect(input.right).toBe(false);
+        } finally {
+            cleanup();
+        }
+    });
+
+    it('clears a click move target when keyboard movement starts', () => {
+        const input = createInputState();
+        input.moveTarget = { x: 100, y: 120 };
+        const gs = {
+            paused: false,
+            offeredUpgrades: [],
+        } as unknown as GameState;
+        const cleanup = setupKeyboard(input, gs, {
+            onPause: () => { },
+            onResume: () => { },
+            toggleStats: () => { },
+            onUpgradeNav: () => { },
+            onUpgradeConfirm: () => { },
+            lastInputDeviceRef: { v: 'keyboard' },
+        });
+
+        try {
+            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }));
+
+            expect(input.right).toBe(true);
+            expect(input.moveTarget).toBeUndefined();
         } finally {
             cleanup();
         }

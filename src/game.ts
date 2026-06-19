@@ -7,7 +7,7 @@ import { randomRng } from './rng';
 import { distSq } from './math';
 import { createBackground } from './game/background';
 import { formatRunTime, updateHud, updateStatsOverlay } from './game/hud';
-import { createInputState, getActivePad, readGamepadDirections, setupKeyboard, setupGamepad } from './game/input';
+import { createInputState, getActivePad, hasDirectionalInput, readGamepadDirections, setupKeyboard, setupGamepad } from './game/input';
 import { FIRE_INTERVAL_BASE, POWERS_VALUES } from './constants/balance';
 import { nextXpNeeded, spawnIntervalAt, auraDpsAt } from './balanceUtils';
 import { createPlayerSpriteFromGrid, PlayerSprite } from './sprites/grid';
@@ -45,6 +45,7 @@ export class Game {
     private playerSpriteLoadToken = 0;
     private playerContainer?: PIXI.Container;
     private fallbackPlayerVisual?: PIXI.Container;
+    private moveTargetMarker?: PIXI.Graphics;
     private lastDebugMetricAt = 0;
 
     private endCb: (result: { time: number; kills: number; shards: number; }) => void;
@@ -132,6 +133,7 @@ export class Game {
         if (this.destroyed) return;
 
         this.setupInput();
+        this.setupPointerMovement();
         this.setupUpgradeShortcuts();
         this.app.ticker.add(this.update);
     }
@@ -250,6 +252,84 @@ export class Game {
             onUpgradeConfirm: () => { const sel = this.gs.offeredUpgrades[this.upgradeSelIndex]; if (sel) this.chooseUpgrade(sel); },
             lastInputDeviceRef: lastInputRef
         }));
+    }
+
+    private setupPointerMovement() {
+        const canvas = this.app.canvas;
+        const pointFromEvent = (e: PointerEvent) => {
+            if (!this.gs?.runActive || this.gs.paused) return;
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return;
+            const x = (e.clientX - rect.left) * (this.app.renderer.width / rect.width);
+            const y = (e.clientY - rect.top) * (this.app.renderer.height / rect.height);
+            return this.clampMovePoint(x, y);
+        };
+        const onPointerMove = (e: PointerEvent) => {
+            const point = pointFromEvent(e);
+            if (!point) return;
+            this.input.cursorTarget = point;
+        };
+        const onPointerDown = (e: PointerEvent) => {
+            const point = pointFromEvent(e);
+            if (!point) return;
+            this.input.cursorTarget = point;
+            if (e.pointerType === 'mouse' && e.button === 2) {
+                e.preventDefault();
+                this.clearMoveTarget();
+                return;
+            }
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            this.setMoveTarget(point.x, point.y);
+        };
+        const onContextMenu = (e: MouseEvent) => {
+            e.preventDefault();
+            this.clearMoveTarget();
+        };
+        canvas.addEventListener('pointermove', onPointerMove);
+        canvas.addEventListener('pointerdown', onPointerDown);
+        canvas.addEventListener('contextmenu', onContextMenu);
+        this.cleanupFns.push(() => {
+            canvas.removeEventListener('pointermove', onPointerMove);
+            canvas.removeEventListener('pointerdown', onPointerDown);
+            canvas.removeEventListener('contextmenu', onContextMenu);
+        });
+    }
+
+    private clampMovePoint(x: number, y: number) {
+        const player = this.gs.entities.get(this.gs.playerId);
+        if (!player) return { x, y };
+        return {
+            x: Math.max(player.radius, Math.min(this.app.renderer.width - player.radius, x)),
+            y: Math.max(player.radius, Math.min(this.app.renderer.height - player.radius, y)),
+        };
+    }
+
+    private setMoveTarget(x: number, y: number) {
+        this.input.moveTarget = this.clampMovePoint(x, y);
+        this.showMoveTargetMarker();
+    }
+
+    private clearMoveTarget() {
+        this.input.moveTarget = undefined;
+        if (this.moveTargetMarker) this.moveTargetMarker.visible = false;
+    }
+
+    private showMoveTargetMarker() {
+        const target = this.input.moveTarget;
+        if (!target) return;
+        if (!this.moveTargetMarker) {
+            const marker = new PIXI.Graphics();
+            marker.zIndex = Z_PLAYER - 1;
+            marker.circle(0, 0, 6).stroke({ color: 0x9dffc4, width: 1.5, alpha: 0.7 });
+            marker.moveTo(-9, 0).lineTo(-4, 0).moveTo(4, 0).lineTo(9, 0)
+                .moveTo(0, -9).lineTo(0, -4).moveTo(0, 4).lineTo(0, 9)
+                .stroke({ color: 0x9dffc4, width: 1.5, alpha: 0.7 });
+            this.moveTargetMarker = marker;
+            this.app.stage.addChild(marker);
+        }
+        this.moveTargetMarker.visible = true;
+        this.moveTargetMarker.x = target.x;
+        this.moveTargetMarker.y = target.y;
     }
 
 
@@ -559,10 +639,12 @@ export class Game {
             this.gs.boltTimer = fireInterval;
         }
 
-        // movement (instant directional, for snappy feel & clear speed)
+        // movement (instant directional, with click/tap destination as an alternate input)
         const prevX = player.x;
         const prevY = player.y;
         let mx = 0, my = 0;
+        const manualInput = hasDirectionalInput(this.input);
+        if (manualInput) this.clearMoveTarget();
         if (this.input.up && this.input.down) {
             my = 0;
         }
@@ -582,6 +664,24 @@ export class Game {
             my /= len;
         }
         const moveSpeed = (player.speed || 120);
+        const pointerTarget = this.input.moveTarget ?? this.input.cursorTarget;
+        if (!manualInput && mx === 0 && my === 0 && pointerTarget) {
+            const dx = pointerTarget.x - player.x;
+            const dy = pointerTarget.y - player.y;
+            const dist = Math.hypot(dx, dy);
+            const step = moveSpeed * dt;
+            this.targetFacing = Math.atan2(dy, dx);
+            if (dist <= Math.max(4, step)) {
+                if (this.input.moveTarget) {
+                    player.x = this.input.moveTarget.x;
+                    player.y = this.input.moveTarget.y;
+                    this.clearMoveTarget();
+                }
+            } else {
+                mx = dx / dist;
+                my = dy / dist;
+            }
+        }
         player.x += mx * moveSpeed * dt;
         player.y += my * moveSpeed * dt;
         // Boundaries (viewport clamp)

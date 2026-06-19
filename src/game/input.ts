@@ -19,6 +19,10 @@ export interface GamepadDirections {
 
 export function createInputState(): InputState { return { up: false, down: false, left: false, right: false }; }
 
+export function hasDirectionalInput(input: InputState): boolean {
+    return input.up || input.down || input.left || input.right;
+}
+
 const axis0HatPadKeys = new Set<string>();
 let pointerRestoreWired = false;
 
@@ -103,10 +107,12 @@ export function setupKeyboard(input: InputState, gs: GameState, helpers: { onPau
     const keydown = (e: KeyboardEvent) => {
         helpers.lastInputDeviceRef.v = 'keyboard';
         const key = normalizeKey(e.key);
-        if (key === 'w' || key === 'ArrowUp') input.up = true;
-        if (key === 's' || key === 'ArrowDown') input.down = true;
-        if (key === 'a' || key === 'ArrowLeft') input.left = true;
-        if (key === 'd' || key === 'ArrowRight') input.right = true;
+        let pressedDirection = false;
+        if (key === 'w' || key === 'ArrowUp') { input.up = true; pressedDirection = true; }
+        if (key === 's' || key === 'ArrowDown') { input.down = true; pressedDirection = true; }
+        if (key === 'a' || key === 'ArrowLeft') { input.left = true; pressedDirection = true; }
+        if (key === 'd' || key === 'ArrowRight') { input.right = true; pressedDirection = true; }
+        if (pressedDirection) input.moveTarget = undefined;
         if (gs.paused && gs.offeredUpgrades.length) {
             if (key === 'ArrowLeft' || key === 'a') { helpers.onUpgradeNav(-1); e.preventDefault(); }
             else if (key === 'ArrowRight' || key === 'd') { helpers.onUpgradeNav(1); e.preventDefault(); }
@@ -154,6 +160,7 @@ export function setupGamepad(input: InputState, gs: GameState, helpers: { onPaus
             }
             if (helpers.lastInputDeviceRef.v === 'gamepad') {
                 input.left = left; input.right = right; input.up = up; input.down = down;
+                if (pad.anyDir) input.moveTarget = undefined;
             }
             if (buttons[9] && !lastButtons[9]) helpers.onPause(); // Start
             const toggleStats = (buttons[3] && !lastButtons[3]) || (buttons[8] && !lastButtons[8]);
