@@ -7,11 +7,13 @@ import { getAudioSettings, setMasterVolume, setMuted } from './audio';
 import { openDebugTestPanel } from './ui/debugTest';
 import { wireDevOptions } from './ui/debugOptions';
 import { getActivePad, markControllerInput, readGamepadDirections, setupPointerInputRestore } from './game/input';
+import { PLAYER_SHIPS, getPlayerShip, loadPlayerShipId, savePlayerShipId, type PlayerShipId } from './playerShips';
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
 const DEBUG_PANEL_KEY = 'voidsurvivor_debug_panel_enabled';
 let debugPanelEnabled = loadDebugPanelEnabled();
+let selectedPlayerShipId = loadPlayerShipId();
 
 function renderMeta() {
     const list = document.getElementById('metaList');
@@ -97,7 +99,7 @@ function startRun() {
         currentGame = null;
     }
     const startStats = buildStartStats(meta);
-    currentGame = new Game(root, startStats, meta, onRunEnd);
+    currentGame = new Game(root, startStats, meta, onRunEnd, getPlayerShip(selectedPlayerShipId));
     updateDebugRunPanel();
 }
 
@@ -167,6 +169,7 @@ function wireMenu() {
     };
     try { console.info('[meta] Refund wiring complete', { btn: !!document.getElementById('btnRefundMeta') }); } catch { }
     wireAudioSettings();
+    wireShipSettings();
     wireDebugRunPanel();
     window.addEventListener('voidsurvivor-open-settings', () => {
         settingsReturnTarget = 'pause';
@@ -174,6 +177,31 @@ function wireMenu() {
         show('settingsMenu');
     });
     window.addEventListener('voidsurvivor-debug-state', updateDebugRunPanel);
+}
+
+function wireShipSettings() {
+    const select = document.getElementById('playerShipSelect') as HTMLSelectElement | null;
+    const preview = document.getElementById('playerShipPreview') as HTMLElement | null;
+    if (!select) return;
+    select.innerHTML = '';
+    for (const ship of PLAYER_SHIPS) {
+        const opt = document.createElement('option');
+        opt.value = ship.id;
+        opt.textContent = ship.name;
+        select.appendChild(opt);
+    }
+    const render = () => {
+        const ship = getPlayerShip(selectedPlayerShipId);
+        select.value = ship.id;
+        if (preview) preview.style.setProperty('--ship-preview', `url("${ship.previewUrl}")`);
+    };
+    select.addEventListener('change', () => {
+        selectedPlayerShipId = getPlayerShip(select.value).id as PlayerShipId;
+        savePlayerShipId(selectedPlayerShipId);
+        render();
+        void currentGame?.setPlayerShip(getPlayerShip(selectedPlayerShipId));
+    });
+    render();
 }
 
 function updateDebugRunPanel() {
@@ -392,7 +420,7 @@ function bootstrap() {
         root.innerHTML = '';
         setHudVisible(true);
         const startStats = buildStartStats(meta);
-        currentGame = new Game(root, startStats, meta, onRunEnd);
+        currentGame = new Game(root, startStats, meta, onRunEnd, getPlayerShip(selectedPlayerShipId));
         updateDebugRunPanel();
     });
     // Handle quitting mid-run from pause menu

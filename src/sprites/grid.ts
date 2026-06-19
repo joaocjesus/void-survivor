@@ -18,6 +18,7 @@ export interface GridSheetOptions {
 
 // Slice a grid spritesheet into textures (uniform cells)
 export function sliceGrid(texture: PIXI.Texture, cols: number, rows: number): PIXI.Texture[] {
+    texture.source.scaleMode = 'linear';
     const w = texture.width; const h = texture.height;
     const fw = Math.floor(w / cols); const fh = Math.floor(h / rows);
     const list: PIXI.Texture[] = [];
@@ -59,6 +60,7 @@ export function createPlayerSpriteFromGrid(texture: PIXI.Texture, options: GridS
     const anim = new PIXI.AnimatedSprite(makeCycleFor('right'));
     anim.animationSpeed = 0.2;
     anim.anchor.set(0.5);
+    anim.roundPixels = false;
     anim.play();
 
     const container = new PIXI.Container();

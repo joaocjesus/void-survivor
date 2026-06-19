@@ -16,7 +16,8 @@ Arena survival roguelite prototype built with TypeScript, Vite and PixiJS.
 - Gamepad: movement, upgrade selection, menu navigation, pause toggle
 - Particle effects, hit flashes and simple procedural audio
 - Deterministic seeded RNG for consistent balancing tests
- - Sprite sheet player character with frame mirroring (right-facing frames reused for left via scale.x flip)
+- Sprite sheet player character with frame mirroring (right-facing frames reused for left via scale.x flip)
+- Ship sprite selection in settings, including a starter Scout Dart and generated Voidwing
 
 ## Getting Started
 

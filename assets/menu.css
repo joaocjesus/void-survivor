@@ -157,6 +157,30 @@ body.controller-input .menu-panel button.debug:not(.focused):hover {
     width: 100%
 }
 
+#playerShipSelect {
+    min-width: 190px;
+    padding: 8px 10px;
+    border: 1px solid #355062;
+    border-radius: 8px;
+    background: #202832;
+    color: #dfe9f1;
+    font: inherit
+}
+
+.ship-preview {
+    --ship-preview: none;
+    height: 82px;
+    border: 1px solid rgba(90, 169, 255, .22);
+    border-radius: 8px;
+    background-image:
+        var(--ship-preview),
+        radial-gradient(circle at 50% 48%, rgba(90, 169, 255, .12), transparent 58%),
+        linear-gradient(#10151b, #10151b);
+    background-position: center, center, center;
+    background-repeat: no-repeat;
+    background-size: contain, auto, auto
+}
+
 .controller-badge {
     padding: 3px 8px;
     border-radius: 999px;

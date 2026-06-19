@@ -84,6 +84,7 @@ export interface GameState {
     meta: MetaSave;
     runShards?: number; // shards collected this run
     statsVisible?: boolean;
+    fps?: number;
     lastEliteMinute?: number;
 }
 

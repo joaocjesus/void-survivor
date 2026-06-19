@@ -13,10 +13,7 @@ import { nextXpNeeded, spawnIntervalAt, auraDpsAt } from './balanceUtils';
 import { createPlayerSpriteFromGrid, PlayerSprite } from './sprites/grid';
 import { advanceChaserUntilContact, didMove, MOVE_ANIM_SPEED } from './movement';
 import { renderUpgradeCard } from './ui/upgradeCard';
-import playerSpritesUrl from '../assets/player-sprites.png';
-
-const playerSpriteTexturePromise: Promise<PIXI.Texture | null> =
-    PIXI.Assets.load(playerSpritesUrl).catch(() => null);
+import type { PlayerShipDefinition } from './playerShips';
 
 const Z_PLAYER = 40;
 
@@ -34,7 +31,9 @@ export class Game {
     private upgradeSelIndex: number = 0;
     private lastInputDevice: 'keyboard' | 'gamepad' = 'keyboard';
     private playerSprite?: PlayerSprite;
-    private lastDir: 'left' | 'right' | 'up' | 'down' = 'right';
+    // Top-down facing: radians, 0 = ship nose pointing +X (right). Sprite rotates to face movement.
+    private playerFacing: number = 0;
+    private targetFacing: number = 0;
     // Simplified animation state
     private wasMoving: boolean = false;
     private cleanupFns: Array<() => void> = [];
@@ -42,16 +41,27 @@ export class Game {
     private gameOverKeyCleanup?: () => void;
     private pauseKeyCleanup?: () => void;
     private debugInvulnerable = false;
+    private playerShip: PlayerShipDefinition;
+    private playerSpriteLoadToken = 0;
+    private playerContainer?: PIXI.Container;
+    private fallbackPlayerVisual?: PIXI.Container;
 
     private endCb: (result: { time: number; kills: number; shards: number; }) => void;
-    constructor(parent: HTMLElement, startStats: PlayerStartStats, meta: MetaSave, endCb: (result: { time: number; kills: number; shards: number; }) => void) {
+    constructor(parent: HTMLElement, startStats: PlayerStartStats, meta: MetaSave, endCb: (result: { time: number; kills: number; shards: number; }) => void, playerShip: PlayerShipDefinition) {
         this.endCb = endCb;
+        this.playerShip = playerShip;
         void this.init(parent, startStats, meta);
     }
 
     private async init(parent: HTMLElement, startStats: PlayerStartStats, meta: MetaSave) {
         this.app = new PIXI.Application();
-        await this.app.init({ resizeTo: parent, background: '#121416', antialias: true });
+        await this.app.init({
+            resizeTo: parent,
+            background: '#121416',
+            antialias: true,
+            autoDensity: true,
+            resolution: Math.min(window.devicePixelRatio || 1, 2),
+        });
         if (this.destroyed) {
             try { this.app.destroy(true); } catch { }
             return;
@@ -81,7 +91,8 @@ export class Game {
             runActive: true,
             startStats: startStats,
             meta: meta,
-            runShards: 0
+            runShards: 0,
+            fps: 0
         };
 
         const player: Entity = {
@@ -102,6 +113,8 @@ export class Game {
         fallback.addChild(glow); fallback.addChild(core); fallback.addChild(ring);
         fallback.visible = false;
         playerG.addChild(fallback);
+        this.playerContainer = playerG;
+        this.fallbackPlayerVisual = fallback;
         // aura visual (updated in update loop based on level)
         const aura = new PIXI.Graphics();
         aura.alpha = 0.18;
@@ -114,26 +127,35 @@ export class Game {
         this.app.stage.addChild(playerG);
         this.sprites.set(player.id, playerG);
 
-        const tex = await playerSpriteTexturePromise;
-        if (this.destroyed) {
-            return;
-        }
-        if (tex) {
-            // New sheet: 4 columns x 6 rows, only right-facing; 21 frames total (last row partial)
-            const sprite = createPlayerSpriteFromGrid(tex, { cols: 4, rows: 6, cycleRows: [0, 1, 2, 3, 4, 5], frameCount: 21 });
-            // Use sprite's native pixel size (no downscale to hit circle)
-            // If you want to tweak: sprite.view.scale.set(0.75) etc.
-            sprite.view.scale.set(0.15);
-            // Insert under aura/orbit but above glow
-            playerG.addChildAt(sprite.view, 1);
-            this.playerSprite = sprite;
-        } else {
-            fallback.visible = true;
-        }
+        await this.setPlayerShip(this.playerShip);
+        if (this.destroyed) return;
 
         this.setupInput();
         this.setupUpgradeShortcuts();
         this.app.ticker.add(this.update);
+    }
+
+    async setPlayerShip(playerShip: PlayerShipDefinition) {
+        this.playerShip = playerShip;
+        if (!this.app || !this.playerContainer) return;
+        const token = ++this.playerSpriteLoadToken;
+        const tex: PIXI.Texture | null = await PIXI.Assets.load(playerShip.sheetUrl).catch(() => null);
+        if (this.destroyed || token !== this.playerSpriteLoadToken) return;
+        if (this.playerSprite) {
+            this.playerSprite.view.parent?.removeChild(this.playerSprite.view);
+            this.playerSprite = undefined;
+        }
+        if (!tex) {
+            if (this.fallbackPlayerVisual) this.fallbackPlayerVisual.visible = true;
+            return;
+        }
+
+        const sprite = createPlayerSpriteFromGrid(tex, playerShip.grid);
+        sprite.view.scale.set(playerShip.scale);
+        sprite.view.rotation = this.playerFacing;
+        this.playerContainer.addChildAt(sprite.view, Math.min(1, this.playerContainer.children.length));
+        this.playerSprite = sprite;
+        if (this.fallbackPlayerVisual) this.fallbackPlayerVisual.visible = false;
     }
 
     setupUpgradeShortcuts() {
@@ -501,6 +523,10 @@ export class Game {
         if (!this.gs || this.gs.paused) return; // paused or not ready
         // Convert ticker delta to seconds (deltaTime ~1 at 60fps)
         const dt = ticker.deltaTime / 60;
+        const rawFps = dt > 0 ? 1 / dt : 0;
+        if (Number.isFinite(rawFps) && rawFps > 0) {
+            this.gs.fps = this.gs.fps ? this.gs.fps * 0.9 + rawFps * 0.1 : rawFps;
+        }
         this.gs.time += dt;
 
         // Timed elite spawn each full minute (t>=60) once per minute
@@ -564,14 +590,9 @@ export class Game {
         player.y = Math.max(player.radius, Math.min(h - player.radius, player.y));
         this.pushTouchingMobs(player);
 
-        // Update facing direction immediately from input (responsive orientation)
-        if (this.playerSprite) {
-            if (mx !== 0 || my !== 0) {
-                // Prefer horizontal when present, else vertical
-                if (mx !== 0) this.lastDir = mx < 0 ? 'left' : 'right';
-                else if (my !== 0) this.lastDir = my < 0 ? 'up' : 'down';
-                this.playerSprite.setDir(this.lastDir);
-            }
+        // Top-down orientation: aim the ship nose at the movement direction.
+        if (mx !== 0 || my !== 0) {
+            this.targetFacing = Math.atan2(my, mx);
         }
 
         // Aura damage application
@@ -770,6 +791,12 @@ export class Game {
                 this.wasMoving = moved;
             }
             this.playerSprite.setAnimSpeed(moved ? MOVE_ANIM_SPEED : 0);
+
+            // Smoothly rotate the ship toward the movement direction (shortest path).
+            let diff = this.targetFacing - this.playerFacing;
+            diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+            this.playerFacing += diff * Math.min(1, dt * 14);
+            this.playerSprite.view.rotation = this.playerFacing;
         }
 
         this.updateHud();

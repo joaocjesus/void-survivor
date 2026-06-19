@@ -41,6 +41,7 @@ describe('updateStatsOverlay', () => {
             xp: 0,
             xpNeeded: 5,
             kills: 0,
+            fps: 59.6,
             startStats,
         } as unknown as GameState;
 
@@ -48,6 +49,7 @@ describe('updateStatsOverlay', () => {
 
         const content = document.getElementById('statsContent')?.textContent ?? '';
         expect(content).toContain('Bolt Speed100%');
+        expect(content).toContain('FPS60');
         expect(content).toContain('Move Speed100%');
         expect(content).toContain('Pickup Range50 px');
         expect(content).toContain('Regeneration0.25 HP/s');

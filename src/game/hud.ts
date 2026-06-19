@@ -67,6 +67,7 @@ export function updateStatsOverlay(gs: GameState) {
     const p = gs.entities.get(gs.playerId)!;
     const rows: [string, string][] = [];
     const pct = (value: number | undefined, base: number | undefined) => `${Math.round(((value ?? base ?? 0) / (base || 1)) * 100)}%`;
+    rows.push(['FPS', String(Math.round(gs.fps || 0))]);
     rows.push(['Level', String(gs.level)]);
     rows.push(['XP', `${Math.floor(gs.xp)}/${gs.xpNeeded}`]);
     rows.push(['Kills', String(gs.kills)]);
