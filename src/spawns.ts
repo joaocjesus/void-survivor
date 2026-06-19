@@ -1,8 +1,9 @@
 import * as PIXI from 'pixi.js';
 import { GameState, Entity } from './types';
-import { chooseShotAngles, pickAngle } from './math';
+import { chooseShotAngles, distSq, isEntityInViewport } from './math';
 import { playSound } from './audio';
 import { BOLT_BASE_LIFE } from './constants/balance';
+import { ENEMY_VALUES } from './constants/enemies';
 
 export interface RenderCtx {
     app: PIXI.Application;
@@ -24,8 +25,8 @@ export function spawnMob(gs: GameState, ctx: RenderCtx, point?: SpawnPoint) {
     const spawnDist = base + gs.rng() * 120;
     const sx = point?.x ?? player.x + Math.cos(angle) * spawnDist;
     const sy = point?.y ?? player.y + Math.sin(angle) * spawnDist;
-    const hp = 8 + Math.floor(gs.time * 0.25);
-    const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 12, kind: 'mob', hp, maxHp: hp, damage: 4, speed: 36 + gs.rng() * 22 };
+    const hp = ENEMY_VALUES.NORMAL.BASE_HP + Math.floor(gs.time * ENEMY_VALUES.NORMAL.HP_PER_SECOND);
+    const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 12, kind: 'mob', hp, maxHp: hp, damage: ENEMY_VALUES.NORMAL.DAMAGE, speed: 36 + gs.rng() * 22 };
     gs.entities.set(id, e);
     const g = new PIXI.Container();
     const body = new PIXI.Graphics(); body.circle(0, 0, e.radius).fill({ color: 0x8b1a1a }).stroke({ color: 0xff4d4d, width: 2 });
@@ -41,8 +42,8 @@ export function spawnElite(gs: GameState, ctx: RenderCtx, point?: SpawnPoint) {
     const spawnDist = base + gs.rng() * 140;
     const sx = point?.x ?? player.x + Math.cos(angle) * spawnDist;
     const sy = point?.y ?? player.y + Math.sin(angle) * spawnDist;
-    const hp = 120 + Math.floor(gs.time * 1.2);
-    const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 16, kind: 'mob', hp, maxHp: hp, damage: 10, speed: 30 + gs.rng() * 15, isElite: true };
+    const hp = ENEMY_VALUES.ELITE.BASE_HP + Math.floor(gs.time * ENEMY_VALUES.ELITE.HP_PER_SECOND);
+    const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 16, kind: 'mob', hp, maxHp: hp, damage: ENEMY_VALUES.ELITE.DAMAGE, speed: 30 + gs.rng() * 15, isElite: true };
     gs.entities.set(id, e);
     const g = new PIXI.Container();
     const body = new PIXI.Graphics();
@@ -131,9 +132,14 @@ export function fireBolt(gs: GameState, ctx: RenderCtx) {
 
     // Each shot aims at a distinct in-range enemy (reach = speed × lifetime); extras reuse.
     const reach = speed * life;
-    const mobs = [...gs.entities.values()].filter(e => e.kind === 'mob');
-    const fallback = pickAngle(gs) ?? gs.rng() * Math.PI * 2;
-    const angles = chooseShotAngles(player.x, player.y, mobs, shots, reach, fallback, MULTISHOT_DUP_SPREAD);
+    const visibleMobs = [...gs.entities.values()]
+        .filter(e => e.kind === 'mob' && isEntityInViewport(e, ctx.app.renderer.width, ctx.app.renderer.height));
+    if (visibleMobs.length === 0) return;
+    const nearestVisible = visibleMobs
+        .map(e => ({ e, d: distSq(player.x, player.y, e.x, e.y) }))
+        .sort((a, b) => a.d - b.d)[0].e;
+    const fallback = Math.atan2(nearestVisible.y - player.y, nearestVisible.x - player.x);
+    const angles = chooseShotAngles(player.x, player.y, visibleMobs, shots, reach, fallback, MULTISHOT_DUP_SPREAD);
 
     for (const angle of angles) {
         const id = gs.nextEntityId++;

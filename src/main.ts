@@ -8,6 +8,7 @@ import { openDebugTestPanel } from './ui/debugTest';
 import { wireDevOptions } from './ui/debugOptions';
 import { getActivePad, markControllerInput, readGamepadDirections, setupPointerInputRestore } from './game/input';
 import { PLAYER_SHIPS, getPlayerShip, loadPlayerShipId, savePlayerShipId, type PlayerShipId } from './playerShips';
+import { getGameplaySettings, setMouseMovementEnabled } from './settings';
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
@@ -169,6 +170,7 @@ function wireMenu() {
     };
     try { console.info('[meta] Refund wiring complete', { btn: !!document.getElementById('btnRefundMeta') }); } catch { }
     wireAudioSettings();
+    wireGameplaySettings();
     wireShipSettings();
     wireDebugRunPanel();
     window.addEventListener('voidsurvivor-open-settings', () => {
@@ -177,6 +179,20 @@ function wireMenu() {
         show('settingsMenu');
     });
     window.addEventListener('voidsurvivor-debug-state', updateDebugRunPanel);
+}
+
+function wireGameplaySettings() {
+    const mouseToggle = document.getElementById('mouseMovementEnabled') as HTMLInputElement | null;
+    if (!mouseToggle) return;
+    const render = () => {
+        mouseToggle.checked = getGameplaySettings().mouseMovementEnabled;
+    };
+    mouseToggle.addEventListener('change', () => {
+        setMouseMovementEnabled(!!mouseToggle.checked);
+        currentGame?.setMouseMovementEnabled(!!mouseToggle.checked);
+        render();
+    });
+    render();
 }
 
 function wireShipSettings() {

@@ -4,7 +4,7 @@ import { START_STATS, META_VALUES } from './constants/balance';
 const STORAGE_KEY = 'survivors_meta_v1';
 
 export const defaultStartStats: PlayerStartStats = {
-    hp: START_STATS.HP,
+    hp: START_STATS.MAX_HP,
     maxHp: START_STATS.MAX_HP,
     damage: START_STATS.DAMAGE,
     speed: START_STATS.SPEED,
@@ -13,6 +13,8 @@ export const defaultStartStats: PlayerStartStats = {
     pickupRange: START_STATS.PICKUP_RANGE,
     regen: START_STATS.REGEN,
     xpGain: START_STATS.XP_GAIN,
+    rerolls: START_STATS.REROLLS,
+    bans: START_STATS.BANS,
 };
 
 export const META_UPGRADES: MetaUpgradeDef[] = [
@@ -22,6 +24,8 @@ export const META_UPGRADES: MetaUpgradeDef[] = [
     { id: 'meta_regen', name: 'Regen', description: `+${META_VALUES.REGEN_PER_LEVEL} HP/s per level`, maxLevel: 50, cost: l => 30 + l * 15, apply: (lvl, s) => { s.regen += META_VALUES.REGEN_PER_LEVEL * lvl; } },
     { id: 'meta_pickup', name: 'Magnet', description: `+${META_VALUES.PICKUP_RANGE_PER_LEVEL} Pickup Range / level`, maxLevel: 20, cost: l => 20 + l * 14, apply: (lvl, s) => { s.pickupRange += META_VALUES.PICKUP_RANGE_PER_LEVEL * lvl; } },
     { id: 'meta_xp', name: 'Wisdom', description: `+${(META_VALUES.XP_GAIN_PCT_PER_LEVEL * 100).toFixed(0)}% XP Gain / level`, maxLevel: 40, cost: l => 25 + l * 20, apply: (lvl, s) => { s.xpGain *= (1 + META_VALUES.XP_GAIN_PCT_PER_LEVEL * lvl); } },
+    { id: 'meta_rerolls', name: 'Second Chance', description: `+${META_VALUES.REROLLS_PER_LEVEL} Reroll per level`, maxLevel: 5, cost: l => 35 + l * 25, apply: (lvl, s) => { s.rerolls += META_VALUES.REROLLS_PER_LEVEL * lvl; } },
+    { id: 'meta_bans', name: 'Seal Fate', description: `+${META_VALUES.BANS_PER_LEVEL} Ban per level`, maxLevel: 5, cost: l => 45 + l * 30, apply: (lvl, s) => { s.bans += META_VALUES.BANS_PER_LEVEL * lvl; } },
 ];
 
 export function loadMeta(): MetaSave {

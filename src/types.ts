@@ -55,7 +55,7 @@ export interface OfferedUpgrade { def: UpgradeDef; rarity: Rarity; }
 
 export interface MetaUpgradeDef { id: string; name: string; description: string; maxLevel: number; cost: (level: number) => number; apply: (level: number, base: PlayerStartStats) => void; }
 
-export interface PlayerStartStats { hp: number; maxHp: number; damage: number; speed: number; attackSpeed: number; boltSpeed: number; pickupRange: number; regen: number; xpGain: number; auraDamage?: number; auraRadius?: number; }
+export interface PlayerStartStats { hp: number; maxHp: number; damage: number; speed: number; attackSpeed: number; boltSpeed: number; pickupRange: number; regen: number; xpGain: number; rerolls: number; bans: number; auraDamage?: number; auraRadius?: number; }
 
 export interface MetaSave {
     shards: number;
@@ -79,6 +79,11 @@ export interface GameState {
     upgradePool: UpgradeDef[];
     upgradeCounts: Record<string, number>; // times each upgrade has been taken
     offeredUpgrades: OfferedUpgrade[];
+    rerolls?: number;
+    bans?: number;
+    rerollControlsEverAvailable?: boolean;
+    banControlsEverAvailable?: boolean;
+    banModeActive?: boolean;
     runActive: boolean;
     startStats: PlayerStartStats;
     meta: MetaSave;

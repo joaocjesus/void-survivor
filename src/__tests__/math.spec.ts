@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clamp, distSq, pickAngle, chooseShotAngles } from '../math';
+import { clamp, distSq, isEntityInViewport, pickAngle, chooseShotAngles } from '../math';
 import type { GameState, Entity } from '../types';
 
 const mob = (x: number, y: number): Entity => ({ id: 0, x, y, vx: 0, vy: 0, radius: 8, kind: 'mob' } as Entity);
@@ -20,6 +20,12 @@ describe('math utils', () => {
     });
     it('distSq computes squared distance', () => {
         expect(distSq(0, 0, 3, 4)).toBe(25);
+    });
+    it('isEntityInViewport accounts for entity radius', () => {
+        expect(isEntityInViewport(mob(-7, 50), 100, 100)).toBe(true);
+        expect(isEntityInViewport(mob(-9, 50), 100, 100)).toBe(false);
+        expect(isEntityInViewport(mob(50, 107), 100, 100)).toBe(true);
+        expect(isEntityInViewport(mob(50, 109), 100, 100)).toBe(false);
     });
     it('pickAngle returns undefined when no mobs', () => {
         const gs = makeGs({}, []);

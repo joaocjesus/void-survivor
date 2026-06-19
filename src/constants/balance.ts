@@ -3,30 +3,33 @@
 
 // Player starting stats
 export const START_STATS = {
-    HP: 50,
     MAX_HP: 50,
-    DAMAGE: 10,
-    SPEED: 80,
-    ATTACK_SPEED: 1,
-    BOLT_SPEED: 100,
+    DAMAGE: 1,
+    SPEED: 100,
+    ATTACK_SPEED: 2.5,
+    BOLT_SPEED: 200,
     PICKUP_RANGE: 50,
     REGEN: 0,
     XP_GAIN: 1,
+    REROLLS: 3,
+    BANS: 0,
 };
 
 // Meta upgrade per-level increments / multipliers
 export const META_VALUES = {
     HP_PER_LEVEL: 10,
-    DAMAGE_PER_LEVEL: 5,
+    DAMAGE_PER_LEVEL: 2,
     SPEED_PCT_PER_LEVEL: 0.05,
     REGEN_PER_LEVEL: 0.25,      // HP per second
     PICKUP_RANGE_PER_LEVEL: 10,
     XP_GAIN_PCT_PER_LEVEL: 0.10,
+    REROLLS_PER_LEVEL: 1,
+    BANS_PER_LEVEL: 1,
 };
 
 // In-run upgrade values
 export const UPGRADE_VALUES = {
-    DAMAGE_PLUS: 5,
+    DAMAGE_PLUS: 1,
     ATTACK_SPEED_MULT: 1.20,
     MOVE_SPEED_MULT: 1.10,
     BOLT_SPEED_MULT: 1.20,
@@ -40,9 +43,9 @@ export const XP_CURVE_MULT = 1.20;
 export const XP_CURVE_FLAT = 5;
 
 // Spawning & combat pacing
-export const SPAWN_INTERVAL_START = 1.4; // seconds at t=0
-export const SPAWN_INTERVAL_MIN = 0.25;  // lower bound
-export const SPAWN_INTERVAL_DECAY = 0.006; // per second reduction before clamp
+export const SPAWN_INTERVAL_START = 5; // seconds at t=0
+export const SPAWN_INTERVAL_MIN = 1;  // lower bound
+export const SPAWN_INTERVAL_DECAY = 0.004; // per second reduction before clamp
 export const FIRE_INTERVAL_BASE = 1.65;   // base bolt fire interval (reduced by attack speed multiplier)
 export const BOLT_BASE_LIFE = 1.2;   // seconds a bolt lives before despawn (scaled by boltLifespan)
 

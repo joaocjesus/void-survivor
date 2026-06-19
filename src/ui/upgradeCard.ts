@@ -47,7 +47,7 @@ export interface UpgradeCardOptions {
     onChoose?: (upgrade: UpgradeDef) => void;
 }
 
-export function renderUpgradeCard(upgrade: UpgradeDef, options: UpgradeCardOptions): HTMLButtonElement {
+export function renderUpgradeCard(upgrade: UpgradeDef, options: UpgradeCardOptions): HTMLDivElement {
     ensureCardNoise();
     const rarity = options.rarity ?? 'common';
     const player = options.player;
@@ -58,11 +58,19 @@ export function renderUpgradeCard(upgrade: UpgradeDef, options: UpgradeCardOptio
     const currentLevel = unlockable ? increments : increments + 1;
     const nextLevel = currentLevel + 1;
 
-    const card = document.createElement('button');
+    const card = document.createElement('div');
     card.className = `upgrade rarity-${rarity}`;
-    card.type = 'button';
+    card.role = 'button';
+    card.tabIndex = 0;
     if (upgrade.isPower) card.classList.add('power');
-    if (options.onChoose) card.onclick = () => options.onChoose?.(upgrade);
+    if (options.onChoose) {
+        card.addEventListener('click', () => options.onChoose?.(upgrade));
+        card.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            options.onChoose?.(upgrade);
+        });
+    }
 
     const badge = (side: 'left' | 'right', level: number, tone: 'current' | 'next') =>
         `<span class="levelBadge levelBadge--${side} levelBadge--${tone}"><span class="levelBadgeLabel">LVL</span><span class="levelBadgeNum">${level}</span></span>`;

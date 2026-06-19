@@ -26,7 +26,7 @@ describe('updateStatsOverlay', () => {
         document.body.innerHTML = `<div id="statsOverlay"><div id="statsContent"></div></div>`;
         const startStats: PlayerStartStats = {
             hp: 50, maxHp: 50, damage: 10, speed: 80, attackSpeed: 1,
-            boltSpeed: 100, pickupRange: 50, regen: 0, xpGain: 1,
+            boltSpeed: 100, pickupRange: 50, regen: 0, xpGain: 1, rerolls: 3, bans: 0,
         };
         const player: Entity = {
             id: 0, kind: 'player', x: 0, y: 0, vx: 0, vy: 0, radius: 10,

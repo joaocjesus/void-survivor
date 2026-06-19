@@ -10,6 +10,11 @@ export function distSq(ax: number, ay: number, bx: number, by: number): number {
     return dx * dx + dy * dy;
 }
 
+export function isEntityInViewport(e: Entity, width: number, height: number): boolean {
+    const radius = e.radius || 0;
+    return e.x + radius >= 0 && e.x - radius <= width && e.y + radius >= 0 && e.y - radius <= height;
+}
+
 // Choose firing angles for `shots` bolts. Each shot aims at a distinct mob
 // within `reach` (nearest first); once distinct enemies run out, extra shots reuse
 // targets round-robin with a small fan spread so they don't perfectly overlap.

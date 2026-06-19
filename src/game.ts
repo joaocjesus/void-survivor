@@ -14,6 +14,7 @@ import { createPlayerSpriteFromGrid, PlayerSprite } from './sprites/grid';
 import { advanceChaserUntilContact, didMove, MOVE_ANIM_SPEED } from './movement';
 import { renderUpgradeCard } from './ui/upgradeCard';
 import type { PlayerShipDefinition } from './playerShips';
+import { getMouseMovementEnabled } from './settings';
 
 const Z_PLAYER = 40;
 
@@ -24,6 +25,7 @@ export class Game {
     input = createInputState();
     upgradeModal = document.getElementById('upgradeModal') as HTMLDivElement | null;
     upgradeChoicesEl = document.getElementById('upgradeChoices') as HTMLDivElement | null;
+    upgradeControlsEl: HTMLDivElement | null = null;
     healthBar = document.getElementById('hpBar') as HTMLDivElement | null;
     hpText = document.getElementById('hp') as HTMLSpanElement | null;
     hpMaxText = document.getElementById('hpMax') as HTMLSpanElement | null;
@@ -90,6 +92,11 @@ export class Game {
             upgradePool: [...UPGRADES],
             upgradeCounts: {},
             offeredUpgrades: [],
+            rerolls: startStats.rerolls,
+            bans: startStats.bans,
+            rerollControlsEverAvailable: startStats.rerolls > 0,
+            banControlsEverAvailable: startStats.bans > 0,
+            banModeActive: false,
             runActive: true,
             startStats: startStats,
             meta: meta,
@@ -166,7 +173,7 @@ export class Game {
             if (!this.gs?.paused || !this.gs.offeredUpgrades.length) return;
             const idx = parseInt(e.key, 10) - 1;
             if (idx >= 0 && idx < this.gs.offeredUpgrades.length) {
-                this.chooseUpgrade(this.gs.offeredUpgrades[idx]);
+                this.selectUpgradeOffer(this.gs.offeredUpgrades[idx]);
             }
         };
         window.addEventListener('keydown', keydown);
@@ -177,36 +184,34 @@ export class Game {
         this.upgradeModal = document.getElementById('upgradeModal') as HTMLDivElement | null;
         if (!this.upgradeModal) return false;
         let choices = this.upgradeModal.querySelector('#upgradeChoices') as HTMLDivElement | null;
+        let controls = this.upgradeModal.querySelector('#upgradeControls') as HTMLDivElement | null;
         if (!choices) {
             this.upgradeModal.innerHTML = `<div class="panel">
                 <h2>Choose an Upgrade</h2>
                 <div class="upgrades" id="upgradeChoices"></div>
+                <div class="upgradeControls" id="upgradeControls"></div>
                 <div class="footerHint">Press 1-3, Enter, A, or click</div>
             </div>`;
             choices = this.upgradeModal.querySelector('#upgradeChoices') as HTMLDivElement | null;
+            controls = this.upgradeModal.querySelector('#upgradeControls') as HTMLDivElement | null;
+        } else if (!controls) {
+            controls = document.createElement('div');
+            controls.className = 'upgradeControls';
+            controls.id = 'upgradeControls';
+            choices.insertAdjacentElement('afterend', controls);
         }
         this.upgradeChoicesEl = choices;
+        this.upgradeControlsEl = controls;
         return !!this.upgradeChoicesEl;
     }
 
     showUpgradeChoices() {
         if (!this.ensureUpgradeModalShell() || !this.upgradeModal || !this.upgradeChoicesEl) return;
         this.gs.paused = true;
-        this.upgradeChoicesEl.innerHTML = '';
-        const choices = this.pickUpgradeOffers(3);
-        this.gs.offeredUpgrades = choices;
+        this.gs.offeredUpgrades = this.pickUpgradeOffers(3);
         this.upgradeSelIndex = 0; // reset selection
-        const player = this.gs.entities.get(this.gs.playerId)!;
-        for (const offer of choices) {
-            const div = renderUpgradeCard(offer.def, {
-                player,
-                base: this.gs.startStats,
-                rarity: offer.rarity,
-                increments: this.gs.upgradeCounts[offer.def.id] || 0,
-                onChoose: () => this.chooseUpgrade(offer),
-            });
-            this.upgradeChoicesEl.appendChild(div);
-        }
+        this.gs.banModeActive = false;
+        this.renderUpgradeChoices();
         // Inject style for increment percentage if not present
         if (!document.getElementById('upgradeIncStyle')) {
             const st = document.createElement('style');
@@ -214,9 +219,63 @@ export class Game {
             st.textContent = `.incPct{color:#4caf50;font-weight:600;}`;
             document.head.appendChild(st);
         }
-        // Apply initial highlight for controller users
-        this.applyUpgradeSelectionHighlight();
         this.upgradeModal.style.display = 'flex';
+    }
+
+    private renderUpgradeChoices() {
+        if (!this.upgradeChoicesEl) return;
+        this.upgradeChoicesEl.innerHTML = '';
+        const player = this.gs.entities.get(this.gs.playerId)!;
+        for (const offer of this.gs.offeredUpgrades) {
+            const div = renderUpgradeCard(offer.def, {
+                player,
+                base: this.gs.startStats,
+                rarity: offer.rarity,
+                increments: this.gs.upgradeCounts[offer.def.id] || 0,
+                onChoose: () => this.selectUpgradeOffer(offer),
+            });
+            this.upgradeChoicesEl.appendChild(div);
+        }
+        this.renderUpgradeControls();
+        // Apply initial highlight for controller users
+        this.upgradeSelIndex = Math.max(0, Math.min(this.gs.offeredUpgrades.length - 1, this.upgradeSelIndex));
+        this.applyUpgradeSelectionHighlight();
+    }
+
+    private renderUpgradeControls() {
+        if (!this.upgradeControlsEl) return;
+        this.upgradeControlsEl.innerHTML = '';
+        const showReroll = this.shouldShowRerollControl();
+        const showBan = this.shouldShowBanControl();
+        const rerolls = this.gs.rerolls ?? 0;
+        const bans = this.gs.bans ?? 0;
+        const isBanMode = !!this.gs.banModeActive;
+        this.upgradeControlsEl.hidden = !showReroll && !showBan;
+        this.upgradeChoicesEl?.classList.toggle('ban-mode', isBanMode);
+        if (this.upgradeModal) this.upgradeModal.classList.toggle('ban-mode', isBanMode);
+
+        if (showReroll) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'upgradeControlButton';
+            btn.textContent = `Reroll (${rerolls})`;
+            btn.disabled = rerolls <= 0;
+            btn.title = rerolls > 0 ? 'Reroll all offered upgrades' : 'No rerolls left';
+            btn.addEventListener('click', () => this.rerollUpgradeChoices());
+            this.upgradeControlsEl.appendChild(btn);
+        }
+
+        if (showBan) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'upgradeControlButton banControlButton';
+            if (isBanMode) btn.classList.add('active');
+            btn.textContent = isBanMode ? `Choose Card to Ban (${bans})` : `Ban (${bans})`;
+            btn.disabled = bans <= 0;
+            btn.title = bans > 0 ? 'Activate ban mode, then click a card to ban it' : 'No bans left';
+            btn.addEventListener('click', () => this.toggleBanMode());
+            this.upgradeControlsEl.appendChild(btn);
+        }
     }
 
     hideUpgradeChoices() {
@@ -226,6 +285,71 @@ export class Game {
     }
 
     pickUpgradeOffers(count: number): OfferedUpgrade[] { return pickUpgradeOffers(this.gs, count); }
+
+    private shouldShowRerollControl(): boolean {
+        if ((this.gs.rerolls ?? 0) > 0) this.gs.rerollControlsEverAvailable = true;
+        return !!this.gs.rerollControlsEverAvailable;
+    }
+
+    private shouldShowBanControl(): boolean {
+        if ((this.gs.bans ?? 0) > 0) this.gs.banControlsEverAvailable = true;
+        return !!this.gs.banControlsEverAvailable;
+    }
+
+    private rerollUpgradeChoices() {
+        if ((this.gs.rerolls ?? 0) <= 0) return;
+        this.gs.rerolls = Math.max(0, (this.gs.rerolls ?? 0) - 1);
+        this.gs.rerollControlsEverAvailable = true;
+        this.gs.banModeActive = false;
+        this.gs.offeredUpgrades = this.pickUpgradeOffers(3);
+        this.upgradeSelIndex = 0;
+        this.renderUpgradeChoices();
+    }
+
+    private toggleBanMode() {
+        if ((this.gs.bans ?? 0) <= 0) return;
+        this.gs.banControlsEverAvailable = true;
+        this.gs.banModeActive = !this.gs.banModeActive;
+        this.renderUpgradeControls();
+    }
+
+    private selectUpgradeOffer(offer: OfferedUpgrade) {
+        if (this.gs.banModeActive) {
+            this.banUpgradeChoice(offer);
+            return;
+        }
+        this.chooseUpgrade(offer);
+    }
+
+    private banUpgradeChoice(offer: OfferedUpgrade) {
+        if ((this.gs.bans ?? 0) <= 0) return;
+        const index = this.gs.offeredUpgrades.findIndex(item => item.def.id === offer.def.id);
+        if (index < 0) return;
+        this.gs.bans = Math.max(0, (this.gs.bans ?? 0) - 1);
+        this.gs.banControlsEverAvailable = true;
+        this.gs.banModeActive = false;
+        this.gs.upgradePool = this.gs.upgradePool.filter(upgrade => upgrade.id !== offer.def.id);
+        const replacement = this.pickReplacementOffer(offer.def.id);
+        if (replacement) {
+            this.gs.offeredUpgrades.splice(index, 1, replacement);
+        } else {
+            this.gs.offeredUpgrades.splice(index, 1);
+        }
+        this.upgradeSelIndex = Math.min(index, Math.max(0, this.gs.offeredUpgrades.length - 1));
+        this.renderUpgradeChoices();
+    }
+
+    private pickReplacementOffer(bannedId: string): OfferedUpgrade | undefined {
+        const excluded = new Set(this.gs.offeredUpgrades.map(offer => offer.def.id));
+        excluded.delete(bannedId);
+        const originalPool = this.gs.upgradePool;
+        try {
+            this.gs.upgradePool = originalPool.filter(upgrade => !excluded.has(upgrade.id));
+            return this.pickUpgradeOffers(1)[0];
+        } finally {
+            this.gs.upgradePool = originalPool;
+        }
+    }
 
     chooseUpgrade(offer: OfferedUpgrade) {
         applyUpgradeChoice(this.gs, offer.def, offer.rarity);
@@ -242,14 +366,14 @@ export class Game {
             onResume: () => { const pm = document.getElementById('pauseMenu'); if (pm && pm.style.display === 'flex') this.closePauseMenu(); },
             toggleStats: () => { this.gs.statsVisible = !this.gs.statsVisible; updateStatsOverlay(this.gs); },
             onUpgradeNav: (dir) => { this.upgradeSelIndex = Math.max(0, Math.min(this.gs.offeredUpgrades.length - 1, this.upgradeSelIndex + dir)); this.applyUpgradeSelectionHighlight(); },
-            onUpgradeConfirm: () => { const sel = this.gs.offeredUpgrades[this.upgradeSelIndex]; if (sel) this.chooseUpgrade(sel); },
+            onUpgradeConfirm: () => { const sel = this.gs.offeredUpgrades[this.upgradeSelIndex]; if (sel) this.selectUpgradeOffer(sel); },
             lastInputDeviceRef: lastInputRef
         }));
         this.cleanupFns.push(setupGamepad(this.input, this.gs, {
             onPause: () => { const pm = document.getElementById('pauseMenu'); if (pm && pm.style.display === 'flex') this.closePauseMenu(); else if (!this.gs.paused) this.openPauseMenu(); },
             toggleStats: () => { this.gs.statsVisible = !this.gs.statsVisible; updateStatsOverlay(this.gs); },
             onUpgradeNav: (dir) => { this.upgradeSelIndex = Math.max(0, Math.min(this.gs.offeredUpgrades.length - 1, this.upgradeSelIndex + dir)); this.applyUpgradeSelectionHighlight(); },
-            onUpgradeConfirm: () => { const sel = this.gs.offeredUpgrades[this.upgradeSelIndex]; if (sel) this.chooseUpgrade(sel); },
+            onUpgradeConfirm: () => { const sel = this.gs.offeredUpgrades[this.upgradeSelIndex]; if (sel) this.selectUpgradeOffer(sel); },
             lastInputDeviceRef: lastInputRef
         }));
     }
@@ -258,6 +382,7 @@ export class Game {
         const canvas = this.app.canvas;
         const pointFromEvent = (e: PointerEvent) => {
             if (!this.gs?.runActive || this.gs.paused) return;
+            if (e.pointerType === 'mouse' && !getMouseMovementEnabled()) return;
             const rect = canvas.getBoundingClientRect();
             if (rect.width <= 0 || rect.height <= 0) return;
             const x = (e.clientX - rect.left) * (this.app.renderer.width / rect.width);
@@ -312,6 +437,12 @@ export class Game {
     private clearMoveTarget() {
         this.input.moveTarget = undefined;
         if (this.moveTargetMarker) this.moveTargetMarker.visible = false;
+    }
+
+    setMouseMovementEnabled(enabled: boolean) {
+        if (enabled) return;
+        this.input.cursorTarget = undefined;
+        this.clearMoveTarget();
     }
 
     private showMoveTargetMarker() {
@@ -664,7 +795,7 @@ export class Game {
             my /= len;
         }
         const moveSpeed = (player.speed || 120);
-        const pointerTarget = this.input.moveTarget ?? this.input.cursorTarget;
+        const pointerTarget = getMouseMovementEnabled() ? (this.input.moveTarget ?? this.input.cursorTarget) : undefined;
         if (!manualInput && mx === 0 && my === 0 && pointerTarget) {
             const dx = pointerTarget.x - player.x;
             const dy = pointerTarget.y - player.y;

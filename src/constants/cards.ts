@@ -46,7 +46,7 @@ export interface CardInfo {
 export const CARDS = {
     damage: {
         name: 'Damage', description: 'Increase bolt damage', // +flat
-        values: { common: 5, uncommon: 10, rare: 15, epic: 20, legendary: 25 },
+        values: { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5 },
     },
     hp: {
         name: 'Max Health', description: 'Increase max HP', // +flat (also heals)

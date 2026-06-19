@@ -147,7 +147,8 @@ body.controller-input .menu-panel button.debug:not(.focused):hover {
     opacity: .82
 }
 
-#debugPanelEnabled {
+#debugPanelEnabled,
+#mouseMovementEnabled {
     width: 18px;
     height: 18px;
     accent-color: #5aa9ff
