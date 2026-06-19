@@ -207,12 +207,14 @@ function wireShipSettings() {
 function updateDebugRunPanel() {
     const panel = document.getElementById('debugRunPanel') as HTMLElement | null;
     const inv = document.getElementById('debugInvulnerable') as HTMLInputElement | null;
+    const fps = document.getElementById('debugFps');
     const toggle = document.getElementById('debugPanelEnabled') as HTMLInputElement | null;
     if (toggle) toggle.checked = debugPanelEnabled;
     if (!panel) return;
     const visible = debugPanelEnabled && !!currentGame && currentGame.isRunActive();
     panel.style.display = visible ? 'block' : 'none';
     if (inv) inv.checked = currentGame?.isDebugInvulnerable() ?? false;
+    if (fps) fps.textContent = String(currentGame?.getFps() ?? 0);
 }
 
 function wireDebugRunPanel() {

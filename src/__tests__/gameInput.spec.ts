@@ -15,7 +15,7 @@ function pad(
         touched: pressedButtons.includes(index),
         value: pressedButtons.includes(index) ? 1 : 0,
     }));
-    return { axes, buttons, connected: true, id, index: 0, mapping } as Gamepad;
+    return { axes, buttons, connected: true, id, index: 0, mapping } as unknown as Gamepad;
 }
 
 describe('readGamepadDirections', () => {

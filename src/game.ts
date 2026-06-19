@@ -45,6 +45,7 @@ export class Game {
     private playerSpriteLoadToken = 0;
     private playerContainer?: PIXI.Container;
     private fallbackPlayerVisual?: PIXI.Container;
+    private lastDebugMetricAt = 0;
 
     private endCb: (result: { time: number; kills: number; shards: number; }) => void;
     constructor(parent: HTMLElement, startStats: PlayerStartStats, meta: MetaSave, endCb: (result: { time: number; kills: number; shards: number; }) => void, playerShip: PlayerShipDefinition) {
@@ -801,6 +802,10 @@ export class Game {
 
         this.updateHud();
         this.updateStatsOverlay();
+        if (this.gs.time - this.lastDebugMetricAt >= 0.25) {
+            this.lastDebugMetricAt = this.gs.time;
+            window.dispatchEvent(new CustomEvent('voidsurvivor-debug-state'));
+        }
     };
 
     spawnShard(x: number, y: number, value: number) { spawnShard(this.gs, { app: this.app, sprites: this.sprites }, x, y, value); }
@@ -809,6 +814,7 @@ export class Game {
 
     setDebugInvulnerable(enabled: boolean) { this.debugInvulnerable = enabled; }
     isDebugInvulnerable() { return this.debugInvulnerable; }
+    getFps() { return Math.round(this.gs?.fps || 0); }
     isRunActive() { return !this.gs || this.gs.runActive; }
     debugAddEnemy() { spawnMob(this.gs, { app: this.app, sprites: this.sprites }, this.debugSpawnPoint(120, 12)); }
     debugAddBoss() { spawnElite(this.gs, { app: this.app, sprites: this.sprites }, this.debugSpawnPoint(150, 16)); }

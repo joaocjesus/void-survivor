@@ -363,6 +363,22 @@
     color: #9fd2ff;
 }
 
+.debug-run-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, .06);
+    color: #c9d7df;
+}
+
+.debug-run-metric strong {
+    color: #ffffff;
+    font-size: 13px;
+}
+
 .debug-run-check {
     display: flex;
     align-items: center;

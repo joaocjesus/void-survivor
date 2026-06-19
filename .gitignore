@@ -11,3 +11,4 @@ pnpm-lock.yaml
 coverage/
 vite.config.timestamp-*
 *-snapshot.json
+/tools/
