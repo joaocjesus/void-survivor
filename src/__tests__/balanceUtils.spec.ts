@@ -28,15 +28,15 @@ describe('balance utils', () => {
         const d3 = auraDpsAt(3);
         expect(d3).toBeCloseTo(d1 * 3);
     });
-    it('pickup range curve makes early magnet upgrades noticeable and tapers later', () => {
+    it('pickup range gain is linear (no taper) and reaches ~10x by level 10', () => {
         const base = 50;
-        const oldLinearCommon = base * 20 / 100;
         const firstCommonGain = pickupRangeGain(base, base, 20);
         const lateCommonGain = pickupRangeGain(250, base, 20);
 
-        expect(firstCommonGain).toBeGreaterThan(oldLinearCommon * 2);
-        expect(lateCommonGain).toBeGreaterThan(oldLinearCommon);
-        expect(lateCommonGain).toBeLessThan(firstCommonGain);
+        // current no longer affects gain
+        expect(lateCommonGain).toBeCloseTo(firstCommonGain);
+        // 10 common picks ~= 10x base
+        expect(base + firstCommonGain * 10).toBeGreaterThanOrEqual(base * 10);
         expect(nextPickupRange(base, base, 20)).toBeCloseTo(base + firstCommonGain);
     });
 });

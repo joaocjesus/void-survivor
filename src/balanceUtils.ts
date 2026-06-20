@@ -22,12 +22,12 @@ export function auraDpsAt(level: number): number {
     return POWERS_VALUES.AURA_DPS_PER_LEVEL * level;
 }
 
-export function pickupRangeGain(current: number, base: number, rarityPct: number): number {
+// Linear gain: no diminishing returns. Common (rarityPct 20) adds ~0.9*base per pick,
+// so a 50px base reaches ~10x (500px) by ~level 10.
+const PICKUP_RANGE_SCALE = 4.5;
+export function pickupRangeGain(_current: number, base: number, rarityPct: number): number {
     const safeBase = Math.max(1, base);
-    const safeCurrent = Math.max(safeBase, current || safeBase);
-    const linearGain = safeBase * rarityPct / 100;
-    const earlyBoost = 1 + 1.5 / Math.sqrt(safeCurrent / safeBase);
-    return linearGain * earlyBoost;
+    return safeBase * rarityPct / 100 * PICKUP_RANGE_SCALE;
 }
 
 export function nextPickupRange(current: number, base: number, rarityPct: number): number {
