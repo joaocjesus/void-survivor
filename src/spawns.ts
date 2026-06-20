@@ -4,6 +4,7 @@ import { chooseShotAngles, distSq, isEntityInViewport } from './math';
 import { playSound } from './audio';
 import { BOLT_BASE_LIFE } from './constants/balance';
 import { ENEMY_VALUES } from './constants/enemies';
+import { createEnemySprite } from './enemySprites';
 
 export interface RenderCtx {
     app: PIXI.Application;
@@ -63,7 +64,7 @@ export function spawnMob(gs: GameState, ctx: RenderCtx, point?: SpawnPoint) {
     const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 12, kind: 'mob', hp, maxHp: hp, damage: ENEMY_VALUES.NORMAL.DAMAGE, speed: 36 + gs.rng() * 22 };
     gs.entities.set(id, e);
     const g = new PIXI.Container();
-    const body = new PIXI.Graphics(); body.circle(0, 0, e.radius).fill({ color: 0x8b1a1a }).stroke({ color: 0xff4d4d, width: 2 });
+    const body = createEnemySprite('normal', e.radius);
     const hpRing = new PIXI.Graphics(); g.addChild(body); g.addChild(hpRing); e.hpRing = hpRing;
     g.zIndex = Z_MOB; g.x = sx; g.y = sy; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
@@ -80,11 +81,9 @@ export function spawnElite(gs: GameState, ctx: RenderCtx, point?: SpawnPoint) {
     const e: Entity = { id, x: sx, y: sy, vx: 0, vy: 0, radius: 16, kind: 'mob', hp, maxHp: hp, damage: ENEMY_VALUES.ELITE.DAMAGE, speed: 30 + gs.rng() * 15, isElite: true };
     gs.entities.set(id, e);
     const g = new PIXI.Container();
-    const body = new PIXI.Graphics();
-    body.rect(-e.radius, -e.radius, e.radius * 2, e.radius * 2).fill({ color: 0x6a1b9a }).stroke({ color: 0xba68c8, width: 3 });
+    const body = createEnemySprite('boss', e.radius);
     const hpRing = new PIXI.Graphics();
-    const glow = new PIXI.Graphics(); glow.rect(-e.radius - 6, -e.radius - 6, (e.radius + 6) * 2, (e.radius + 6) * 2).fill({ color: 0x9c27b0, alpha: 0.05 });
-    g.addChild(glow); g.addChild(body); g.addChild(hpRing); e.hpRing = hpRing;
+    g.addChild(body); g.addChild(hpRing); e.hpRing = hpRing;
     g.zIndex = Z_MOB; g.x = sx; g.y = sy; ctx.app.stage.addChild(g); ctx.sprites.set(id, g);
 }
 

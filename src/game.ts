@@ -16,6 +16,7 @@ import { advanceChaserUntilContact, didMove, MOVE_ANIM_SPEED } from './movement'
 import { renderUpgradeCard } from './ui/upgradeCard';
 import type { PlayerShipDefinition } from './playerShips';
 import { getMouseMovementEnabled } from './settings';
+import { preloadEnemySprites } from './enemySprites';
 
 const Z_PLAYER = 40;
 const RENDER_RESOLUTION = 1;
@@ -147,6 +148,7 @@ export class Game {
         this.sprites.set(player.id, playerG);
 
         await this.setPlayerShip(this.playerShip);
+        await preloadEnemySprites();
         if (this.destroyed) return;
 
         this.setupInput();
