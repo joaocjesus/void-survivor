@@ -55,12 +55,18 @@ describe('chooseShotAngles (multishot targeting)', () => {
         expect(angles).toEqual([fallback, fallback]);
     });
 
-    it('reuses targets with a fan spread when shots exceed in-range enemies', () => {
-        // one enemy due east, 3 shots: first hits it, extras reuse with ± spread
+    it('reuses a single target without fan spread', () => {
+        // one enemy due east, 3 shots: every shot should aim at the target
         const angles = chooseShotAngles(0, 0, [mob(10, 0)], 3, 100, 0, 0.2);
-        expect(Math.abs(angles[0] - 0)).toBeLessThan(1e-6);
-        expect(angles[1]).toBeCloseTo(0.2, 6);
-        expect(angles[2]).toBeCloseTo(-0.2, 6);
+        expect(angles).toEqual([0, 0, 0]);
+    });
+
+    it('fans duplicate shots when cycling across multiple targets', () => {
+        const angles = chooseShotAngles(0, 0, [mob(10, 0), mob(0, 10)], 4, 100, 0, 0.2);
+        expect(angles[0]).toBeCloseTo(0, 6);
+        expect(angles[1]).toBeCloseTo(Math.PI / 2, 6);
+        expect(angles[2]).toBeCloseTo(0.2, 6);
+        expect(angles[3]).toBeCloseTo(Math.PI / 2 + 0.2, 6);
     });
 
     it('uses the fallback angle when no enemies are present', () => {

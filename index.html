@@ -50,13 +50,14 @@
                 upgrades.</p>
             <ul style="line-height:1.5; padding-left:20px;">
                 <li>Move with WASD / Arrows, left stick on a gamepad, or mouse follow when enabled in settings.</li>
-                <li>Left click sets a move target; right click cancels it and returns to mouse follow when mouse movement is enabled.</li>
+                <li>Left click sets a move target; right click cancels it and returns to mouse follow when mouse
+                    movement is enabled.</li>
                 <li>Bolts auto-fire toward the nearest enemy.</li>
-                <li>Collect blue/purple XP gems to level up and choose upgrades.</li>
-                <li>Purple boss gems grant 5× XP.</li>
-                <li>Shards (orange diamonds) fund permanent meta upgrades; elites always drop one.</li>
+                <li>Collect XP to level up and choose upgrades.</li>
+                <li>Collect shards for meta upgrades.</li>
+                <li>Bosses drop extra XP and shards and a magnet orb that pulls on-screen XP.</li>
                 <li>Press Tab to toggle detailed run stats.</li>
-                <li>Avoid enemies; red contact damages you. Regeneration & upgrades help you survive.</li>
+                <li>Avoid enemies; contact damages you. Regeneration & upgrades help you survive.</li>
             </ul>
             <button id="btnBackInstructions" class="back-btn" style="margin-top:12px;">Back</button>
         </div>
@@ -79,7 +80,8 @@
                 </div>
                 <div class="controller-option" aria-current="true">
                     <div class="controller-option-title">GameSir / DirectInput hat-axis profile</div>
-                    <div class="controller-option-note">Supports the current GameSir-style layout: left stick on axes 1/2 and D-pad on axis 0. This is the only controller profile supported right now.</div>
+                    <div class="controller-option-note">Supports the current GameSir-style layout: left stick on axes
+                        1/2 and D-pad on axis 0. This is the only controller profile supported right now.</div>
                 </div>
                 <div class="settings-note">Keyboard controls are always available.</div>
             </div>
@@ -230,11 +232,11 @@
         <label class="debug-run-check"><input id="debugInvulnerable" type="checkbox" /> Invulnerable</label>
         <div class="debug-run-grid">
             <button id="debugAddEnemy">+ Enemy</button>
-            <button id="debugRemoveEnemy">- Enemy</button>
             <button id="debugAddBoss">+ Boss</button>
-            <button id="debugRemoveBoss">- Boss</button>
             <button id="debugDamageDown">- Damage</button>
             <button id="debugDamageUp">+ Damage</button>
+            <button id="debugAddRerolls">+5 Rerolls</button>
+            <button id="debugAddBans">+5 Bans</button>
         </div>
         <button id="debugLevelUp" class="debug-run-wide">Level Up</button>
     </div>

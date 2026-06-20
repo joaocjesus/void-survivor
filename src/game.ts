@@ -2,13 +2,14 @@ import * as PIXI from 'pixi.js';
 import { Entity, GameState, OfferedUpgrade, PlayerStartStats, MetaSave } from './types';
 import { playSound } from './audio';
 import { UPGRADES, pickUpgradeOffers, applyUpgradeChoice } from './upgrades';
-import { spawnMob, spawnElite, spawnXp, fireBolt, spawnParticle, spawnHitBurst, rollShardDrop, spawnShard } from './spawns';
+import { spawnMob, spawnElite, spawnXp, spawnXpMagnet, fireBolt, spawnParticle, spawnHitBurst, rollShardDrop, spawnShard } from './spawns';
 import { randomRng } from './rng';
 import { distSq } from './math';
 import { createBackground } from './game/background';
 import { formatRunTime, updateHud, updateStatsOverlay } from './game/hud';
 import { createInputState, getActivePad, hasDirectionalInput, readGamepadDirections, setupKeyboard, setupGamepad } from './game/input';
 import { FIRE_INTERVAL_BASE, POWERS_VALUES } from './constants/balance';
+import { ENEMY_VALUES } from './constants/enemies';
 import { nextXpNeeded, spawnIntervalAt, auraDpsAt } from './balanceUtils';
 import { createPlayerSpriteFromGrid, PlayerSprite } from './sprites/grid';
 import { advanceChaserUntilContact, didMove, MOVE_ANIM_SPEED } from './movement';
@@ -20,6 +21,9 @@ const Z_PLAYER = 40;
 const RENDER_RESOLUTION = 1;
 const HUD_UPDATE_INTERVAL = 1 / 12;
 const STATS_UPDATE_INTERVAL = 0.25;
+const DROP_STAGGER_MAX_SECONDS = 0.9;
+const DROP_STAGGER_MAX_INTERVAL = 0.025;
+const DROP_SPAWN_JITTER_RADIUS = 5;
 
 export class Game {
     app!: PIXI.Application;
@@ -562,7 +566,9 @@ export class Game {
 
     // spawning & bolt helpers now in spawns.ts
     spawnMob() { spawnMob(this.gs, { app: this.app, sprites: this.sprites }); }
-    spawnXp(x: number, y: number, value: number, elite: boolean = false) { spawnXp(this.gs, { app: this.app, sprites: this.sprites }, x, y, value, elite); }
+    spawnXp(x: number, y: number, value: number, elite: boolean = false, from?: { x: number; y: number; }, delay: number = 0) {
+        spawnXp(this.gs, { app: this.app, sprites: this.sprites }, x, y, value, elite, from ? { from, delay, duration: 0.26, arc: 12 } : undefined);
+    }
     fireBolt() { fireBolt(this.gs, { app: this.app, sprites: this.sprites }); }
 
     levelUp() {
@@ -589,16 +595,84 @@ export class Game {
         if (elite) {
             const angle = this.gs.rng() * Math.PI * 2;
             const offset = mob.radius + 12;
-            this.spawnXp(mob.x + Math.cos(angle) * offset, mob.y + Math.sin(angle) * offset, 10, true);
+            this.spawnXpBurst(mob.x, mob.y, ENEMY_VALUES.ELITE.XP_DROP, ENEMY_VALUES.NORMAL.XP_DROP, offset);
+            const magnetAngle = this.gs.rng() * Math.PI * 2;
+            const magnetDist = this.gs.rng() * offset * 0.45;
+            spawnXpMagnet(this.gs, { app: this.app, sprites: this.sprites }, mob.x + Math.cos(magnetAngle) * magnetDist, mob.y + Math.sin(magnetAngle) * magnetDist, {
+                from: this.randomDropOrigin(mob.x, mob.y),
+                delay: 0.04,
+                duration: 0.26,
+                arc: 12,
+            });
             rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, mob.x, mob.y, true, {
                 x: mob.x - Math.cos(angle) * offset,
                 y: mob.y - Math.sin(angle) * offset,
             });
             return;
         }
-        const droppedShard = rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, mob.x, mob.y, elite);
-        if (!droppedShard) {
-            this.spawnXp(mob.x, mob.y, 2, false);
+        const xpAngle = this.gs.rng() * Math.PI * 2;
+        const xpDist = mob.radius + 6 + this.gs.rng() * 6;
+        this.spawnXp(mob.x + Math.cos(xpAngle) * xpDist, mob.y + Math.sin(xpAngle) * xpDist, ENEMY_VALUES.NORMAL.XP_DROP, false, this.randomDropOrigin(mob.x, mob.y));
+        rollShardDrop(this.gs, { app: this.app, sprites: this.sprites }, mob.x, mob.y, elite);
+    }
+
+    private spawnXpBurst(x: number, y: number, totalValue: number, orbValue: number, radius: number) {
+        const count = Math.max(1, Math.ceil(totalValue / orbValue));
+        const radiusScaleProgress = Math.min(1, Math.max(0, (count - 1) / Math.max(1, ENEMY_VALUES.ELITE.XP_BURST_ORBS_FOR_MAX_RADIUS - 1)));
+        const burstRadius = radius * (1 + radiusScaleProgress * (ENEMY_VALUES.ELITE.XP_BURST_MAX_RADIUS_MULT - 1));
+        const interval = count <= 1 ? 0 : Math.min(DROP_STAGGER_MAX_INTERVAL, DROP_STAGGER_MAX_SECONDS / (count - 1));
+        let remaining = totalValue;
+        for (let i = 0; i < count; i++) {
+            const value = Math.min(orbValue, remaining);
+            remaining -= value;
+            const angle = this.gs.rng() * Math.PI * 2;
+            const dist = Math.sqrt(this.gs.rng()) * burstRadius;
+            this.spawnXp(x + Math.cos(angle) * dist, y + Math.sin(angle) * dist, value, false, this.randomDropOrigin(x, y), i * interval);
+        }
+    }
+
+    private randomDropOrigin(x: number, y: number) {
+        const angle = this.gs.rng() * Math.PI * 2;
+        const dist = Math.sqrt(this.gs.rng()) * DROP_SPAWN_JITTER_RADIUS;
+        return {
+            x: x + Math.cos(angle) * dist,
+            y: y + Math.sin(angle) * dist,
+        };
+    }
+
+    private advanceDropAnimation(e: Entity, dt: number): boolean {
+        if (e.dropElapsed === undefined || e.dropDuration === undefined || e.dropStartX === undefined || e.dropStartY === undefined || e.dropTargetX === undefined || e.dropTargetY === undefined) return false;
+        if (e.dropDelay && e.dropDelay > 0) {
+            e.dropDelay = Math.max(0, e.dropDelay - dt);
+            return true;
+        }
+        e.dropElapsed += dt;
+        const t = Math.min(1, e.dropElapsed / Math.max(0.001, e.dropDuration));
+        const eased = 1 - Math.pow(1 - t, 3);
+        e.x = e.dropStartX + (e.dropTargetX - e.dropStartX) * eased;
+        e.y = e.dropStartY + (e.dropTargetY - e.dropStartY) * eased;
+        e.visualOffsetY = -(e.dropArc ?? 10) * Math.sin(Math.PI * t);
+        if (t < 1) return true;
+        e.dropElapsed = undefined;
+        e.dropDelay = undefined;
+        e.dropDuration = undefined;
+        e.dropStartX = undefined;
+        e.dropStartY = undefined;
+        e.dropTargetX = undefined;
+        e.dropTargetY = undefined;
+        e.dropArc = undefined;
+        e.visualOffsetY = 0;
+        return false;
+    }
+
+    private magnetizeVisibleXp() {
+        const w = this.app.renderer.width;
+        const h = this.app.renderer.height;
+        for (const e of this.gs.entities.values()) {
+            if (e.kind !== 'xp') continue;
+            if (e.magnetized) continue;
+            if (e.x + e.radius < 0 || e.x - e.radius > w || e.y + e.radius < 0 || e.y - e.radius > h) continue;
+            e.magnetized = true;
         }
     }
 
@@ -919,6 +993,7 @@ export class Game {
         for (const e of this.gs.entities.values()) {
             if (e.kind === 'player') continue;
             if (toRemoveSet.has(e.id)) continue;
+            if (this.advanceDropAnimation(e, dt)) continue;
             if (e.kind === 'mob') {
                 const contact = advanceChaserUntilContact(e, player, e.speed || 60, dt);
                 e.x = contact.x;
@@ -972,15 +1047,31 @@ export class Game {
             } else if (e.kind === 'xp') {
                 const range = (player.pickupRange || 60);
                 const r = player.radius + e.radius + range * 0.2;
-                if (distSq(player.x, player.y, e.x, e.y) < r * r) {
+                if (e.magnetized || distSq(player.x, player.y, e.x, e.y) < r * r) {
                     // magnet pull if within range
                     const dx = player.x - e.x; const dy = player.y - e.y; const len = Math.hypot(dx, dy) || 1;
-                    if (len < range) {
-                        e.x += dx / len * dt * 200;
-                        e.y += dy / len * dt * 200;
+                    if (e.magnetized || len < range) {
+                        const speed = e.magnetized ? 420 : 200;
+                        e.x += dx / len * dt * speed;
+                        e.y += dy / len * dt * speed;
                     }
                     if (distSq(player.x, player.y, e.x, e.y) < (player.radius + e.radius + 4) ** 2) {
                         this.grantXp(e.value || 1);
+                        playSound('pickup');
+                        markRemove(e.id);
+                    }
+                }
+            } else if (e.kind === 'xpMagnet') {
+                const range = (player.pickupRange || 60);
+                const r = player.radius + e.radius + range * 0.15;
+                if (distSq(player.x, player.y, e.x, e.y) < r * r) {
+                    const dx = player.x - e.x; const dy = player.y - e.y; const len = Math.hypot(dx, dy) || 1;
+                    if (len < range) {
+                        e.x += dx / len * dt * 180;
+                        e.y += dy / len * dt * 180;
+                    }
+                    if (distSq(player.x, player.y, e.x, e.y) < (player.radius + e.radius + 4) ** 2) {
+                        this.magnetizeVisibleXp();
                         playSound('pickup');
                         markRemove(e.id);
                     }
@@ -1022,13 +1113,15 @@ export class Game {
         for (const [id, sprite] of this.sprites) {
             const e = this.gs.entities.get(id);
             if (!e) continue;
+            sprite.visible = !(e.dropDelay && e.dropDelay > 0);
             sprite.x = e.x;
-            sprite.y = e.y;
+            sprite.y = e.y + (e.visualOffsetY ?? 0);
             if (e.kind === 'particle') { sprite.alpha = e.alpha ?? 1; }
-            if (e.kind === 'xp' && e.pulse) {
+            if ((e.kind === 'xp' || e.kind === 'xpMagnet') && e.pulse) {
                 const elite = e.isElite;
-                const amp = elite ? 0.1 : 0.06;
-                const speed = elite ? 5 : 4;
+                const magnet = e.kind === 'xpMagnet';
+                const amp = magnet ? 0.12 : (elite ? 0.1 : 0.06);
+                const speed = magnet ? 5.5 : (elite ? 5 : 4);
                 const s = 1 + Math.sin(this.gs.time * speed + e.id) * amp;
                 sprite.scale.set(s);
             } else if (e.kind === 'shard' && e.spin) {
@@ -1079,6 +1172,16 @@ export class Game {
     debugAddBoss() { spawnElite(this.gs, { app: this.app, sprites: this.sprites }, this.debugSpawnPoint(150, 16)); }
     debugRemoveEnemy() { this.removeDebugMob(false); }
     debugRemoveBoss() { this.removeDebugMob(true); }
+    debugAddRerolls(amount: number = 5) {
+        this.gs.rerolls = (this.gs.rerolls ?? 0) + amount;
+        this.gs.rerollControlsEverAvailable = true;
+        if (this.gs.paused && this.gs.offeredUpgrades.length) this.renderUpgradeControls();
+    }
+    debugAddBans(amount: number = 5) {
+        this.gs.bans = (this.gs.bans ?? 0) + amount;
+        this.gs.banControlsEverAvailable = true;
+        if (this.gs.paused && this.gs.offeredUpgrades.length) this.renderUpgradeControls();
+    }
     debugAdjustDamage(delta: number) {
         const player = this.gs.entities.get(this.gs.playerId);
         if (!player) return;

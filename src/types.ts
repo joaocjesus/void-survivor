@@ -2,7 +2,7 @@ import type * as PIXI from 'pixi.js';
 import type { Rarity } from './constants/cards';
 
 export interface Vector2 { x: number; y: number; }
-export type EntityKind = 'player' | 'mob' | 'bolt' | 'xp' | 'shard' | 'particle';
+export type EntityKind = 'player' | 'mob' | 'bolt' | 'xp' | 'xpMagnet' | 'shard' | 'particle';
 export interface Entity {
     id: number;
     x: number;
@@ -36,6 +36,16 @@ export interface Entity {
     lastOrbitHitAt?: number;
     pulse?: boolean;
     spin?: boolean;
+    magnetized?: boolean;
+    dropStartX?: number;
+    dropStartY?: number;
+    dropTargetX?: number;
+    dropTargetY?: number;
+    dropElapsed?: number;
+    dropDelay?: number;
+    dropDuration?: number;
+    dropArc?: number;
+    visualOffsetY?: number;
     auraRenderRadius?: number;
     hpBarPct?: number;
     hpRing?: PIXI.Graphics;

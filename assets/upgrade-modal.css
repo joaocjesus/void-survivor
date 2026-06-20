@@ -593,19 +593,19 @@ body.controller-input .upgrade:not(.selected):hover:before {
 }
 
 .upgrades.ban-mode .upgrade:hover::after,
-.upgrades.ban-mode .upgrade.selected::after {
+.upgrades.ban-mode .upgrade:focus-visible::after {
     content: "";
     position: absolute;
     inset: 8px;
     z-index: 6;
     border-radius: 8px;
-    background: rgba(8, 4, 6, .66);
-    box-shadow: inset 0 0 0 2px rgba(255, 107, 107, .72);
+    background: rgba(8, 10, 12, .42);
+    box-shadow: inset 0 0 0 2px rgba(174, 181, 189, .52);
     pointer-events: none
 }
 
 .upgrades.ban-mode .upgrade:hover::before,
-.upgrades.ban-mode .upgrade.selected::before {
+.upgrades.ban-mode .upgrade:focus-visible::before {
     content: "";
     position: absolute;
     left: 50%;
@@ -613,11 +613,11 @@ body.controller-input .upgrade:not(.selected):hover:before {
     z-index: 7;
     width: 108px;
     height: 108px;
-    border: 10px solid #ff6b6b;
+    border: 10px solid #aeb5bd;
     border-radius: 50%;
     transform: translate(-50%, -50%) rotate(-35deg);
     background:
-        linear-gradient(90deg, transparent 0 42%, #ff6b6b 42% 58%, transparent 58% 100%);
+        linear-gradient(90deg, transparent 0 42%, #aeb5bd 42% 58%, transparent 58% 100%);
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, .6));
     pointer-events: none
 }

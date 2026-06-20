@@ -242,11 +242,11 @@ function wireDebugRunPanel() {
     });
     inv?.addEventListener('change', () => currentGame?.setDebugInvulnerable(!!inv.checked));
     document.getElementById('debugAddEnemy')?.addEventListener('click', () => currentGame?.debugAddEnemy());
-    document.getElementById('debugRemoveEnemy')?.addEventListener('click', () => currentGame?.debugRemoveEnemy());
     document.getElementById('debugAddBoss')?.addEventListener('click', () => currentGame?.debugAddBoss());
-    document.getElementById('debugRemoveBoss')?.addEventListener('click', () => currentGame?.debugRemoveBoss());
     document.getElementById('debugDamageDown')?.addEventListener('click', () => currentGame?.debugAdjustDamage(-5));
     document.getElementById('debugDamageUp')?.addEventListener('click', () => currentGame?.debugAdjustDamage(5));
+    document.getElementById('debugAddRerolls')?.addEventListener('click', () => currentGame?.debugAddRerolls(5));
+    document.getElementById('debugAddBans')?.addEventListener('click', () => currentGame?.debugAddBans(5));
     document.getElementById('debugLevelUp')?.addEventListener('click', () => currentGame?.debugLevelUp());
     updateDebugRunPanel();
 }

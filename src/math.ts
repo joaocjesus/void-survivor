@@ -17,7 +17,8 @@ export function isEntityInViewport(e: Entity, width: number, height: number): bo
 
 // Choose firing angles for `shots` bolts. Each shot aims at a distinct mob
 // within `reach` (nearest first); once distinct enemies run out, extra shots reuse
-// targets round-robin with a small fan spread so they don't perfectly overlap.
+// targets round-robin. Duplicate shots only fan when there are multiple targets;
+// with one target, every shot converges so upgrades don't make accuracy worse.
 // With no enemies in range, every shot uses `fallbackAngle`.
 export function chooseShotAngles(
     px: number, py: number, mobs: Entity[], shots: number,
@@ -34,7 +35,7 @@ export function chooseShotAngles(
         if (targets.length === 0) { angles.push(fallbackAngle); continue; }
         const t = targets[i % targets.length];
         let angle = Math.atan2(t.y - py, t.x - px);
-        if (i >= targets.length) {
+        if (i >= targets.length && targets.length > 1) {
             const dup = Math.floor(i / targets.length);
             angle += (dup % 2 === 1 ? 1 : -1) * Math.ceil(dup / 2) * dupSpread;
         }
