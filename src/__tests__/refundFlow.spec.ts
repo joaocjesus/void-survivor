@@ -20,8 +20,9 @@ function makeMeta(shards: number): MetaSave {
 describe('refund purchase flow', () => {
     it('restores shard total after refunding all purchased upgrades', () => {
         const meta = makeMeta(500);
-        // Buy first two upgrades a few levels each until shards drop
-        const buyOrder = ['meta_hp', 'meta_damage', 'meta_speed'];
+        expect(purchaseMeta(meta, 'meta_root_damage')).toBe(true);
+        // Buy branch upgrades a few levels each until shards drop
+        const buyOrder = ['meta_bolt_damage', 'meta_move_speed', 'meta_pickup_range'];
         let initial = meta.shards;
         let purchases = 0;
         for (let i = 0; i < 9; i++) {
@@ -34,11 +35,11 @@ describe('refund purchase flow', () => {
         const afterPurchases = meta.shards;
         const { refunded } = refundAllMeta(meta);
         expect(refunded).toBeGreaterThan(0);
-        // After refund shards should return to initial (no runs adding shards during test)
-        expect(meta.shards).toBe(initial);
+        // After refund shards should return to the original 500 (no runs adding shards during test)
+        expect(meta.shards).toBe(500);
         // Purchased should be cleared
         expect(Object.keys(meta.purchased).length).toBe(0);
         // Sanity: shards increased by exactly what was spent
-        expect(initial - afterPurchases).toBe(refunded);
+        expect(initial - afterPurchases + 1).toBe(refunded);
     });
 });

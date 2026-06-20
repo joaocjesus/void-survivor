@@ -17,6 +17,7 @@ import { renderUpgradeCard } from './ui/upgradeCard';
 import type { PlayerShipDefinition } from './playerShips';
 import { getMouseMovementEnabled } from './settings';
 import { preloadEnemySprites } from './enemySprites';
+import { isRunUpgradeUnlockedByMeta } from './meta';
 
 const Z_PLAYER = 40;
 const RENDER_RESOLUTION = 1;
@@ -100,7 +101,7 @@ export class Game {
             rng: randomRng(12345),
             paused: false,
             // Full pool; per-card `requires` gates (e.g. orb upgrades need orbs first).
-            upgradePool: [...UPGRADES],
+            upgradePool: UPGRADES.filter(upgrade => isRunUpgradeUnlockedByMeta(meta, upgrade.id)),
             upgradeCounts: {},
             offeredUpgrades: [],
             rerolls: startStats.rerolls,

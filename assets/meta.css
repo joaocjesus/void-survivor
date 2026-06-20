@@ -1,25 +1,64 @@
+.meta-menu {
+    align-items: stretch;
+    justify-content: stretch;
+    background: #05070b
+}
+
 .meta-panel {
-    width: min(1180px, 92vw);
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    padding: 0;
+    border-radius: 0;
+    overflow: hidden;
     text-align: left;
-    max-height: 86vh;
-    display: flex;
-    flex-direction: column
+    background:
+        radial-gradient(circle at 18% 24%, rgba(77, 177, 255, .16), transparent 24%),
+        radial-gradient(circle at 74% 17%, rgba(174, 105, 255, .13), transparent 22%),
+        radial-gradient(circle at 58% 78%, rgba(91, 209, 106, .08), transparent 26%),
+        linear-gradient(180deg, #101720, #080c12 68%, #05070b);
+    box-shadow: none
+}
+
+.meta-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: .62;
+    background-image:
+        radial-gradient(circle, rgba(221, 244, 255, .78) 0 1px, transparent 1.5px),
+        radial-gradient(circle, rgba(129, 180, 255, .52) 0 1px, transparent 1.5px),
+        radial-gradient(circle, rgba(255, 255, 255, .38) 0 1px, transparent 1.5px);
+    background-position: 12px 18px, 82px 62px, 35px 104px;
+    background-size: 138px 122px, 210px 170px, 320px 260px
 }
 
 .meta-header {
+    position: absolute;
+    top: 22px;
+    left: 24px;
+    z-index: 6;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    margin: -4px 0 14px;
-    text-align: center
+    justify-content: flex-start;
+    gap: 14px;
+    max-width: calc(100vw - 220px);
+    padding: 10px 12px 10px 16px;
+    border: 1px solid rgba(139, 195, 255, .22);
+    border-radius: 12px;
+    background: rgba(6, 11, 18, .62);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .34);
+    backdrop-filter: blur(10px)
 }
 
 .meta-title {
     margin: 0;
-    font-size: 36px;
-    letter-spacing: 1px;
+    color: #f3f8ff;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: .04em;
     background: linear-gradient(90deg, #6ed6ff, #b5fff4);
     -webkit-background-clip: text;
     background-clip: text;
@@ -33,72 +72,240 @@
 }
 
 .meta-shards {
-    font-size: 16px;
+    position: relative;
+    padding-left: 16px;
+    color: #dfe9f5;
+    font-size: 14px;
     font-weight: 600;
-    margin: 0 0 6px;
-    text-align: center
+    margin: 0;
+    text-align: center;
+    white-space: nowrap
+}
+
+.meta-shards::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #73d9ff;
+    box-shadow: 0 0 10px rgba(115, 217, 255, .8);
+    transform: translateY(-50%)
+}
+
+.meta-actions {
+    position: absolute;
+    right: 24px;
+    bottom: 22px;
+    z-index: 6;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 8px;
+    border: 1px solid rgba(139, 195, 255, .22);
+    border-radius: 12px;
+    background: rgba(6, 11, 18, .62);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .34);
+    backdrop-filter: blur(10px)
+}
+
+.meta-panel button {
+    display: inline-flex;
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    align-items: center;
+    justify-content: center
+}
+
+.meta-actions button {
+    min-width: 108px;
+    padding: 10px 14px
 }
 
 .meta-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 18px 20px;
-    padding: 12px 6px 12px 2px;
-    overflow-y: auto;
-    flex: 1 1 auto
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent
 }
 
-.meta-list::-webkit-scrollbar {
-    width: 10px
+.meta-list::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 50% 50%, transparent 0 48%, rgba(0, 0, 0, .34) 100%),
+        linear-gradient(180deg, rgba(255, 255, 255, .04), transparent 18%, transparent 78%, rgba(0, 0, 0, .24));
+    z-index: 0
 }
 
-.meta-list::-webkit-scrollbar-track {
-    background: #181c22
+.meta-map-toolbar {
+    position: absolute;
+    top: 22px;
+    right: 24px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid rgba(139, 195, 255, .24);
+    border-radius: 12px;
+    background: rgba(6, 11, 18, .62);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .34);
+    backdrop-filter: blur(10px)
 }
 
-.meta-list::-webkit-scrollbar-thumb {
-    background: #2a333b;
-    border-radius: 6px
+.meta-map-toolbar button {
+    min-width: 38px;
+    min-height: 38px;
+    padding: 8px 11px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 800
 }
 
-.meta-list::-webkit-scrollbar-thumb:hover {
-    background: #36424c
+.meta-map-viewport {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    cursor: grab;
+    touch-action: none
+}
+
+.meta-map-viewport.panning {
+    cursor: grabbing
+}
+
+.meta-map-world {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: -660px;
+    margin-top: -380px;
+    transform-origin: center center;
+    transition: transform .12s ease-out
+}
+
+.meta-map-links {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none
+}
+
+.meta-link {
+    fill: none;
+    stroke: rgba(146, 173, 200, .24);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 9 12
+}
+
+.meta-link-active {
+    stroke: rgba(115, 217, 255, .78);
+    stroke-dasharray: none;
+    filter: drop-shadow(0 0 7px rgba(115, 217, 255, .48))
 }
 
 .meta-upgrade {
-    background: #20252b;
-    border: 1px solid #2d3942;
-    /* reduce height by removing large bottom padding so aspect-ratio enforces square */
-    padding: 16px 18px 14px;
-    border-radius: 16px;
-    font-size: 13px;
-    line-height: 1.45;
-    position: relative;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, .35);
-    transition: border-color .15s, background .15s, transform .15s, box-shadow .15s;
-    aspect-ratio: 1/1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden
+    position: absolute;
+    width: 78px;
+    height: 78px;
+    padding: 0;
+    border: 1px solid rgba(137, 167, 196, .44);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 34%, rgba(143, 207, 255, .25), transparent 42%),
+        linear-gradient(180deg, rgba(30, 39, 49, .98), rgba(14, 19, 27, .98));
+    color: #dfe7ef;
+    font-size: 12px;
+    line-height: 1.35;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .36), inset 0 1px 0 rgba(255, 255, 255, .07);
+    transform: translate(-50%, -50%);
+    transition: border-color .15s, background .15s, transform .15s, box-shadow .15s, opacity .15s;
+    display: grid;
+    place-items: center;
+    overflow: visible;
+    user-select: none
+}
+
+.meta-upgrade[aria-disabled="false"] {
+    cursor: pointer
+}
+
+.meta-upgrade[aria-disabled="true"] {
+    cursor: not-allowed
+}
+
+.meta-upgrade::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 50%;
+    pointer-events: none
+}
+
+.meta-upgrade-root {
+    border-color: rgba(110, 214, 255, .72);
+    box-shadow: 0 0 0 1px rgba(110, 214, 255, .2), 0 0 38px rgba(77, 177, 255, .28), 0 12px 28px rgba(0, 0, 0, .38)
+}
+
+.meta-upgrade-bolt {
+    border-color: rgba(94, 171, 255, .5);
+    color: #90caff
+}
+
+.meta-upgrade-character {
+    border-color: rgba(91, 209, 106, .48);
+    color: #95e6a1
+}
+
+.meta-upgrade-magicAura,
+.meta-upgrade-magicOrbs {
+    border-color: rgba(187, 126, 255, .52);
+    color: #d6adff
+}
+
+.meta-upgrade:hover,
+.meta-upgrade:focus-visible,
+.meta-upgrade.focused {
+    z-index: 20
 }
 
 .meta-upgrade:hover {
-    border-color: #3d9bff;
-    background: #25303a;
-    transform: translateY(-3px)
+    border-color: #73d9ff;
+    background:
+        radial-gradient(circle at 50% 34%, rgba(143, 207, 255, .34), transparent 45%),
+        linear-gradient(180deg, rgba(35, 46, 58, .99), rgba(16, 23, 32, .99));
+    transform: translate(-50%, -50%) scale(1.08);
+    box-shadow: 0 0 0 1px rgba(115, 217, 255, .32), 0 0 30px rgba(77, 177, 255, .22), 0 14px 30px rgba(0, 0, 0, .42)
 }
 
 .meta-upgrade.focused {
-    border-color: #5aa9ff;
-    background: #25303a;
-    transform: translateY(-3px);
-    box-shadow: 0 0 0 1px rgba(90, 169, 255, .35), 0 4px 16px rgba(0, 0, 0, .45)
+    border-color: #73d9ff;
+    transform: translate(-50%, -50%) scale(1.08);
+    box-shadow: 0 0 0 2px rgba(115, 217, 255, .38), 0 0 34px rgba(77, 177, 255, .28), 0 14px 30px rgba(0, 0, 0, .42)
 }
 
 body.controller-input .meta-upgrade:not(.focused):hover {
-    border-color: #2d3942;
-    background: #20252b;
-    transform: none
+    border-color: rgba(137, 167, 196, .36);
+    background:
+        radial-gradient(circle at 50% 34%, rgba(143, 207, 255, .25), transparent 42%),
+        linear-gradient(180deg, rgba(30, 39, 49, .98), rgba(14, 19, 27, .98));
+    transform: translate(-50%, -50%)
 }
 
 .meta-upgrade.deny {
@@ -122,26 +329,152 @@ body.controller-input .meta-upgrade:not(.focused):hover {
     }
 }
 
-.meta-upgrade h3 {
-    margin: 0 0 8px;
-    font-size: 17px;
-    letter-spacing: .3px
-}
-
-.meta-upgrade button {
-    /* place at end of flex column instead of absolutely positioned */
-    margin-top: auto;
+.meta-node-core {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    place-items: center;
     width: 100%;
-    font-size: 14px;
-    padding: 9px 12px;
-    /* maintain horizontal padding alignment */
-    align-self: stretch
+    height: 100%
 }
 
-.meta-upgrade button.disabled {
-    opacity: .45;
-    cursor: not-allowed;
-    filter: grayscale(.3)
+.meta-node-core::after {
+    content: "";
+    position: absolute;
+    inset: 15px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: .08;
+    filter: blur(8px)
+}
+
+.meta-node-icon {
+    position: relative;
+    z-index: 1;
+    width: 34px;
+    height: 34px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.15;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 8px currentColor)
+}
+
+.meta-node-level {
+    position: absolute;
+    right: -8px;
+    bottom: -7px;
+    z-index: 2;
+    min-width: 34px;
+    padding: 3px 6px;
+    border: 1px solid rgba(142, 219, 255, .32);
+    border-radius: 999px;
+    background: rgba(7, 11, 17, .92);
+    color: #dfe9f5;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+    text-align: center
+}
+
+.meta-node-details {
+    position: absolute;
+    left: calc(100% + 14px);
+    top: 50%;
+    z-index: 12;
+    width: 260px;
+    padding: 14px 15px 13px;
+    border: 1px solid rgba(142, 219, 255, .25);
+    border-radius: 12px;
+    background:
+        radial-gradient(circle at 12% 0%, rgba(115, 217, 255, .14), transparent 36%),
+        rgba(7, 12, 18, .96);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, .48), 0 0 0 1px rgba(255, 255, 255, .04);
+    color: #dfe7ef;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%) scale(.95);
+    transform-origin: left center;
+    transition: opacity .12s ease-out, transform .12s ease-out
+}
+
+.meta-node-details::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    top: calc(50% - 8px);
+    width: 14px;
+    height: 14px;
+    border-left: 1px solid rgba(142, 219, 255, .25);
+    border-bottom: 1px solid rgba(142, 219, 255, .25);
+    background: rgba(7, 12, 18, .96);
+    transform: rotate(45deg)
+}
+
+.meta-upgrade:hover .meta-node-details,
+.meta-upgrade:focus-visible .meta-node-details,
+body.controller-input .meta-upgrade.focused .meta-node-details {
+    opacity: 1;
+    transform: translateY(-50%) scale(1)
+}
+
+.meta-upgrade-character .meta-node-details,
+.meta-upgrade-magicOrbs .meta-node-details {
+    left: auto;
+    right: calc(100% + 14px);
+    transform-origin: right center
+}
+
+.meta-upgrade-character .meta-node-details::before,
+.meta-upgrade-magicOrbs .meta-node-details::before {
+    left: auto;
+    right: -8px;
+    border-left: 0;
+    border-bottom: 0;
+    border-right: 1px solid rgba(142, 219, 255, .25);
+    border-top: 1px solid rgba(142, 219, 255, .25)
+}
+
+.meta-node-tree {
+    position: relative;
+    z-index: 1;
+    display: block;
+    margin: 0 0 8px;
+    color: #8edbff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .16em;
+    text-transform: uppercase
+}
+
+.meta-node-name {
+    position: relative;
+    z-index: 1;
+    display: block;
+    margin: 0;
+    color: #f3f7fb;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0
+}
+
+.meta-node-description {
+    position: relative;
+    z-index: 1;
+    display: block;
+    margin-top: 7px;
+    color: #b8c4cf
+}
+
+.meta-cost-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    font-size: 12px
 }
 
 .meta-upgrade .cost.insufficient {
@@ -149,13 +482,62 @@ body.controller-input .meta-upgrade:not(.focused):hover {
     font-weight: 600
 }
 
-.meta-upgrade .lvl {
-    font-weight: 600;
-    color: #8dd4ff
+.meta-upgrade.locked {
+    opacity: .42;
+    filter: saturate(.55)
 }
 
-.meta-upgrade.locked {
-    opacity: .45
+.meta-upgrade.maxed {
+    border-color: #5bd16a;
+    box-shadow: 0 0 0 1px rgba(91, 209, 106, .24), 0 0 30px rgba(91, 209, 106, .2), 0 12px 28px rgba(0, 0, 0, .36)
+}
+
+@media (max-width: 720px) {
+    .meta-header {
+        top: 14px;
+        left: 14px;
+        right: 14px;
+        max-width: none;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px
+    }
+
+    .meta-title {
+        font-size: 19px
+    }
+
+    .meta-shards {
+        font-size: 13px
+    }
+
+    .meta-map-toolbar {
+        top: 72px;
+        left: 14px;
+        right: auto;
+        justify-content: flex-start
+    }
+
+    .meta-actions {
+        left: 14px;
+        right: 14px;
+        bottom: 14px;
+        justify-content: space-between
+    }
+
+    .meta-actions button {
+        flex: 1 1 0;
+        min-width: 0
+    }
+
+    .meta-upgrade {
+        width: 70px;
+        height: 70px
+    }
+
+    .meta-node-details {
+        width: 228px
+    }
 }
 
 /* Refund All (global meta action) disabled styling */

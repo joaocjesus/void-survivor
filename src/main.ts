@@ -1,5 +1,5 @@
 import { Game } from './game';
-import { META_UPGRADES, buildStartStats, loadMeta, purchaseMeta, saveMeta, resetMeta } from './meta';
+import { META_TREE_LABELS, buildStartStats, canPurchaseMeta, isMetaUpgradeUnlocked, loadMeta, purchaseMeta, saveMeta, resetMeta, visibleMetaUpgrades } from './meta';
 import { updateRefundButton, handleRefundClick } from './ui/metaRefund';
 import { buildMetaStats } from './ui/metaStats';
 import { confirmAction } from './ui/confirm';
@@ -9,12 +9,46 @@ import { wireDevOptions } from './ui/debugOptions';
 import { getActivePad, markControllerInput, readGamepadDirections, setupPointerInputRestore } from './game/input';
 import { PLAYER_SHIPS, getPlayerShip, loadPlayerShipId, savePlayerShipId, type PlayerShipId } from './playerShips';
 import { getGameplaySettings, setMouseMovementEnabled } from './settings';
+import type { MetaUpgradeDef } from './types';
 
 let currentGame: Game | null = null;
 const meta = loadMeta();
 const DEBUG_PANEL_KEY = 'voidsurvivor_debug_panel_enabled';
 let debugPanelEnabled = loadDebugPanelEnabled();
 let selectedPlayerShipId = loadPlayerShipId();
+const META_MAP_WIDTH = 1320;
+const META_MAP_HEIGHT = 760;
+const META_NODE_LAYOUT: Record<string, { x: number; y: number }> = {
+    meta_root_damage: { x: 620, y: 350 },
+    meta_bolt_damage: { x: 330, y: 245 },
+    meta_bolt_speed: { x: 330, y: 455 },
+    meta_attack_speed: { x: 115, y: 245 },
+    meta_move_speed: { x: 910, y: 245 },
+    meta_pickup_range: { x: 910, y: 455 },
+    meta_max_health: { x: 1125, y: 245 },
+    meta_magic_aura_unlock: { x: 515, y: 115 },
+    meta_magic_aura_radius: { x: 360, y: 55 },
+    meta_magic_orbs_unlock: { x: 725, y: 115 },
+    meta_magic_orbs_damage: { x: 890, y: 55 },
+    meta_magic_orbs_speed: { x: 1045, y: 115 },
+};
+const META_NODE_ICONS: Record<string, string> = {
+    meta_root_damage: '<path d="M12 3 5 14h6l-2 7 8-12h-6l1-6Z"/>',
+    meta_bolt_damage: '<path d="m7 4 10 8-10 8v-5l5-3-5-3V4Z"/>',
+    meta_bolt_speed: '<path d="M4 7h8l-3-3m3 13H4l3 3m4-8h9m-4-4 4 4-4 4"/>',
+    meta_attack_speed: '<path d="M12 4a8 8 0 1 0 8 8"/><path d="M17 4h3v3"/><path d="m20 4-6 6"/><circle cx="12" cy="12" r="2"/>',
+    meta_move_speed: '<path d="M4 12h13"/><path d="m13 6 6 6-6 6"/><path d="M4 7h5M4 17h5"/>',
+    meta_pickup_range: '<path d="M7 5v7a5 5 0 0 0 10 0V5"/><path d="M7 5h4M13 5h4"/><path d="M7 12H4M20 12h-3"/>',
+    meta_max_health: '<path d="M12 5v14M5 12h14"/><path d="M12 3 4 7v5c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7l-8-4Z"/>',
+    meta_magic_aura_unlock: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/>',
+    meta_magic_aura_radius: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="m12 3 2 2-2 2-2-2 2-2ZM12 17l2 2-2 2-2-2 2-2Z"/>',
+    meta_magic_orbs_unlock: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="4" r="2"/><circle cx="19" cy="16" r="2"/><circle cx="5" cy="16" r="2"/><path d="M12 6v3M10 13l-3 2M14 13l3 2"/>',
+    meta_magic_orbs_damage: '<circle cx="12" cy="12" r="3"/><circle cx="18" cy="8" r="2"/><circle cx="6" cy="16" r="2"/><path d="m14 10 5-5M16 5h3v3"/>',
+    meta_magic_orbs_speed: '<circle cx="12" cy="12" r="3"/><path d="M4 12a8 8 0 0 1 13-6"/><path d="M17 3v3h-3"/><path d="M20 12a8 8 0 0 1-13 6"/><path d="M7 21v-3h3"/>',
+};
+let metaMapZoom = 1;
+let metaMapPanX = 0;
+let metaMapPanY = 0;
 
 function renderMeta() {
     const list = document.getElementById('metaList');
@@ -22,46 +56,165 @@ function renderMeta() {
     if (shardsEl) shardsEl.textContent = `Shards: ${meta.shards}`;
     if (!list) return;
     list.innerHTML = '';
-    for (const def of META_UPGRADES) {
-        const lvl = meta.purchased[def.id] || 0;
-        const maxed = lvl >= def.maxLevel;
-        const cost = def.cost(lvl);
-        const div = document.createElement('div');
-        div.className = 'meta-upgrade' + (maxed ? ' locked' : '');
-        const affordable = meta.shards >= cost;
-        const costClasses = ['cost'];
-        if (!maxed && !affordable) costClasses.push('insufficient');
-        div.innerHTML = `<h3>${def.name} <span class='lvl'>${lvl}/${def.maxLevel}</span></h3><p>${def.description}</p><p style='margin:6px 0 26px;'>Cost: <span class='${costClasses.join(' ')}'>${maxed ? '-' : cost}</span></p>`;
-        if (!maxed) {
-            const btn = document.createElement('button');
-            btn.textContent = 'Buy';
-            const affordable = meta.shards >= cost;
-            btn.disabled = !affordable;
-            if (btn.disabled) btn.classList.add('disabled');
-            btn.onclick = () => {
-                if (!affordable) { div.classList.add('deny'); setTimeout(() => div.classList.remove('deny'), 400); return; }
-                if (purchaseMeta(meta, def.id)) { renderMeta(); }
-            };
-            div.appendChild(btn);
-            // Allow clicking anywhere on card
-            div.onclick = (e) => {
-                if ((e.target as HTMLElement).tagName === 'BUTTON') return; // button handles own click
-                if (btn.disabled) { div.classList.add('deny'); setTimeout(() => div.classList.remove('deny'), 400); return; }
-                btn.click();
-            };
-        }
-        div.onmouseenter = () => {
-            // sync focus index to hovered card for smooth mouse->controller handoff
-            const cards = getMetaCards();
-            const idx = cards.indexOf(div);
-            if (idx >= 0) { metaFocusIndex = idx; applyMetaFocus(); }
-        };
-        list.appendChild(div);
-    }
+    const visibleDefs = visibleMetaUpgrades(meta);
+    const toolbar = document.createElement('div');
+    toolbar.className = 'meta-map-toolbar';
+    toolbar.innerHTML = `<button type="button" data-zoom="out" title="Zoom out" aria-label="Zoom out">-</button><button type="button" data-zoom="reset" title="Reset view" aria-label="Reset view">Reset</button><button type="button" data-zoom="in" title="Zoom in" aria-label="Zoom in">+</button>`;
+    list.appendChild(toolbar);
+
+    const viewport = document.createElement('div');
+    viewport.className = 'meta-map-viewport';
+    const world = document.createElement('div');
+    world.className = 'meta-map-world';
+    world.style.width = `${META_MAP_WIDTH}px`;
+    world.style.height = `${META_MAP_HEIGHT}px`;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'meta-map-links');
+    svg.setAttribute('viewBox', `0 0 ${META_MAP_WIDTH} ${META_MAP_HEIGHT}`);
+    svg.setAttribute('aria-hidden', 'true');
+    world.appendChild(svg);
+    viewport.appendChild(world);
+    list.appendChild(viewport);
+
+    renderMetaConnections(svg, visibleDefs);
+    for (const def of visibleDefs) world.appendChild(createMetaNode(def));
+    wireMetaMapControls(list, viewport);
+    applyMetaMapTransform();
     // Reapply focus after rerender (e.g., purchase)
     applyMetaFocus();
     // Update refund button state
     updateRefundButton(meta, document.getElementById('btnRefundMeta') as HTMLButtonElement | null);
+}
+
+function createMetaNode(def: MetaUpgradeDef): HTMLDivElement {
+    const lvl = meta.purchased[def.id] || 0;
+    const maxed = lvl >= def.maxLevel;
+    const unlocked = isMetaUpgradeUnlocked(meta, def);
+    const cost = def.cost(lvl);
+    const purchasable = canPurchaseMeta(meta, def);
+    const div = document.createElement('div');
+    const pos = META_NODE_LAYOUT[def.id] ?? { x: META_MAP_WIDTH / 2, y: META_MAP_HEIGHT / 2 };
+    div.dataset.metaId = def.id;
+    div.className = `meta-upgrade meta-upgrade-${def.tree}` + (maxed ? ' maxed' : '') + (!unlocked ? ' locked' : '');
+    div.style.left = `${pos.x}px`;
+    div.style.top = `${pos.y}px`;
+    const costClasses = ['cost'];
+    if (!maxed && unlocked && meta.shards < cost) costClasses.push('insufficient');
+    const costText = maxed ? 'Complete' : (unlocked ? String(cost) : 'Locked');
+    const treeLabel = META_TREE_LABELS[def.tree];
+    div.setAttribute('aria-label', `${def.name}. ${def.description} Level ${lvl} of ${def.maxLevel}. Cost ${costText}.`);
+    div.innerHTML = `
+        <span class="meta-node-core" aria-hidden="true">
+            <svg class="meta-node-icon" viewBox="0 0 24 24">${META_NODE_ICONS[def.id] ?? META_NODE_ICONS.meta_root_damage}</svg>
+            <span class="meta-node-level">${lvl}/${def.maxLevel}</span>
+        </span>
+        <span class="meta-node-details">
+            <span class="meta-node-tree">${treeLabel}</span>
+            <span class="meta-node-name">${def.name}</span>
+            <span class="meta-node-description">${def.description}</span>
+            <span class='meta-cost-line'><span>Cost</span><span class='${costClasses.join(' ')}'>${costText}</span></span>
+        </span>`;
+    if (!maxed) {
+        div.setAttribute('role', 'button');
+        div.tabIndex = 0;
+        div.setAttribute('aria-disabled', purchasable ? 'false' : 'true');
+        const attemptPurchase = () => {
+            if (!purchasable) { div.classList.add('deny'); setTimeout(() => div.classList.remove('deny'), 400); return; }
+            if (purchaseMeta(meta, def.id)) { renderMeta(); }
+        };
+        div.onclick = attemptPurchase;
+        div.onkeydown = (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            attemptPurchase();
+        };
+    }
+    div.onmouseenter = () => {
+        // sync focus index to hovered node for smooth mouse->controller handoff
+        const cards = getMetaCards();
+        const idx = cards.indexOf(div);
+        if (idx >= 0) { metaFocusIndex = idx; applyMetaFocus(); }
+    };
+    return div;
+}
+
+function renderMetaConnections(svg: SVGSVGElement, visibleDefs: ReturnType<typeof visibleMetaUpgrades>) {
+    const visibleIds = new Set(visibleDefs.map(def => def.id));
+    for (const def of visibleDefs) {
+        for (const requiredId of def.requires ?? []) {
+            if (!visibleIds.has(requiredId)) continue;
+            const from = META_NODE_LAYOUT[requiredId];
+            const to = META_NODE_LAYOUT[def.id];
+            if (!from || !to) continue;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const midX = (from.x + to.x) / 2;
+            path.setAttribute('d', `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`);
+            path.setAttribute('class', (meta.purchased[requiredId] ?? 0) > 0 ? 'meta-link meta-link-active' : 'meta-link');
+            svg.appendChild(path);
+        }
+    }
+}
+
+function wireMetaMapControls(root: HTMLElement, viewport: HTMLElement) {
+    root.querySelector('[data-zoom="out"]')?.addEventListener('click', () => setMetaMapZoom(metaMapZoom - 0.15));
+    root.querySelector('[data-zoom="in"]')?.addEventListener('click', () => setMetaMapZoom(metaMapZoom + 0.15));
+    root.querySelector('[data-zoom="reset"]')?.addEventListener('click', () => {
+        metaMapZoom = 1;
+        metaMapPanX = 0;
+        metaMapPanY = 0;
+        applyMetaMapTransform();
+    });
+    viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = viewport.getBoundingClientRect();
+        const focalX = e.clientX - rect.left - rect.width / 2;
+        const focalY = e.clientY - rect.top - rect.height / 2;
+        setMetaMapZoom(metaMapZoom + (e.deltaY > 0 ? -0.08 : 0.08), focalX, focalY);
+    }, { passive: false });
+
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    viewport.addEventListener('pointerdown', (e) => {
+        if ((e.target as HTMLElement).closest('.meta-upgrade')) return;
+        dragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        viewport.setPointerCapture(e.pointerId);
+        viewport.classList.add('panning');
+    });
+    viewport.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        metaMapPanX += e.clientX - lastX;
+        metaMapPanY += e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        applyMetaMapTransform();
+    });
+    const stopDrag = (e: PointerEvent) => {
+        if (!dragging) return;
+        dragging = false;
+        viewport.releasePointerCapture(e.pointerId);
+        viewport.classList.remove('panning');
+    };
+    viewport.addEventListener('pointerup', stopDrag);
+    viewport.addEventListener('pointercancel', stopDrag);
+}
+
+function setMetaMapZoom(nextZoom: number, focalX = 0, focalY = 0) {
+    const clamped = Math.max(0.55, Math.min(1.65, nextZoom));
+    // Keep the world point under the focal point fixed while scaling.
+    const ratio = clamped / metaMapZoom;
+    metaMapPanX = focalX - (focalX - metaMapPanX) * ratio;
+    metaMapPanY = focalY - (focalY - metaMapPanY) * ratio;
+    metaMapZoom = clamped;
+    applyMetaMapTransform();
+}
+
+function applyMetaMapTransform() {
+    const world = document.querySelector('.meta-map-world') as HTMLElement | null;
+    if (!world) return;
+    world.style.transform = `translate(${metaMapPanX}px, ${metaMapPanY}px) scale(${metaMapZoom})`;
 }
 
 function show(id: string) {
@@ -293,14 +446,29 @@ function applyMetaFocus() {
 }
 function moveMetaFocus(dx: number, dy: number) {
     const cards = getMetaCards(); if (!cards.length) return;
-    const cols = Math.max(1, Math.floor((document.getElementById('metaList')!.clientWidth) / 280));
-    const rows = Math.ceil(cards.length / cols);
-    let row = Math.floor(metaFocusIndex / cols); let col = metaFocusIndex % cols;
-    col = Math.min(cols - 1, Math.max(0, col + dx));
-    row = Math.min(rows - 1, Math.max(0, row + dy));
-    let newIndex = row * cols + col;
-    if (newIndex >= cards.length) newIndex = cards.length - 1;
-    metaFocusIndex = newIndex; applyMetaFocus(); ensureMetaVisible();
+    const current = cards[metaFocusIndex] ?? cards[0];
+    const currentPos = META_NODE_LAYOUT[current.dataset.metaId ?? ''];
+    if (!currentPos) return;
+    let bestIndex = metaFocusIndex;
+    let bestScore = Infinity;
+    cards.forEach((card, index) => {
+        if (index === metaFocusIndex) return;
+        const pos = META_NODE_LAYOUT[card.dataset.metaId ?? ''];
+        if (!pos) return;
+        const deltaX = pos.x - currentPos.x;
+        const deltaY = pos.y - currentPos.y;
+        const primaryDelta = dx !== 0 ? deltaX * dx : deltaY * dy;
+        if (primaryDelta <= 8) return;
+        const crossDelta = dx !== 0 ? Math.abs(deltaY) : Math.abs(deltaX);
+        const score = primaryDelta + crossDelta * 1.7;
+        if (score < bestScore) {
+            bestScore = score;
+            bestIndex = index;
+        }
+    });
+    metaFocusIndex = bestIndex;
+    applyMetaFocus();
+    ensureMetaVisible();
 }
 function ensureMetaVisible() {
     const cards = getMetaCards(); const card = cards[metaFocusIndex]; if (!card) return;
@@ -350,8 +518,7 @@ function setupMenuInput() {
             if (['ArrowDown', 'KeyS'].includes(e.code)) { moveMetaFocus(0, 1); e.preventDefault(); return; }
             if (['Enter', 'Space'].includes(e.code)) {
                 const card = getMetaCards()[metaFocusIndex];
-                const buy = card?.querySelector('button:not(.back-btn)') as HTMLButtonElement | null;
-                buy?.click(); e.preventDefault(); return;
+                card?.click(); e.preventDefault(); return;
             }
             if (e.code === 'Escape') { document.getElementById('btnBackMeta')?.click(); return; }
         }
@@ -408,8 +575,7 @@ function setupMenuInput() {
                     if (down) moveMetaFocus(0, 1);
                     if (buttons[0] && !lastButtons[0]) {
                         const card = getMetaCards()[metaFocusIndex];
-                        const buy = card?.querySelector('button:not(.back-btn)') as HTMLButtonElement | null;
-                        buy?.click();
+                        card?.click();
                     }
                     if (buttons[1] && !lastButtons[1]) { document.getElementById('btnBackMeta')?.click(); }
                 } else {

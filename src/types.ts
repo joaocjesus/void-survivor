@@ -65,7 +65,17 @@ export interface UpgradeDef {
 
 export interface OfferedUpgrade { def: UpgradeDef; rarity: Rarity; }
 
-export interface MetaUpgradeDef { id: string; name: string; description: string; maxLevel: number; cost: (level: number) => number; apply: (level: number, base: PlayerStartStats) => void; }
+export interface MetaUpgradeDef {
+    id: string;
+    name: string;
+    description: string;
+    maxLevel: number;
+    cost: (level: number) => number;
+    apply: (level: number, base: PlayerStartStats) => void;
+    tree: 'root' | 'bolt' | 'character' | 'magicAura' | 'magicOrbs';
+    requires?: string[];
+    unlocksPowerCards?: string[];
+}
 
 export interface PlayerStartStats { hp: number; maxHp: number; damage: number; speed: number; attackSpeed: number; boltSpeed: number; pickupRange: number; regen: number; xpGain: number; rerolls: number; bans: number; auraDamage?: number; auraRadius?: number; }
 

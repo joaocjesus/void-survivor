@@ -71,7 +71,7 @@ describe('confirmAction modal', () => {
 describe('refund integration guarded by confirmation', () => {
     it('does not refund when confirmAction canceled', async () => {
         const meta = makeMeta(300);
-        purchaseMeta(meta, 'meta_hp'); // spend some shards
+        purchaseMeta(meta, 'meta_root_damage'); // spend some shards
         const spentBefore = 300 - meta.shards;
         // Simulate user cancel: open modal then cancel
         const shardsEl = document.createElement('div'); shardsEl.id = 'metaShards'; document.body.appendChild(shardsEl);
@@ -90,7 +90,7 @@ describe('refund integration guarded by confirmation', () => {
 
     it('refunds when confirmation accepted', async () => {
         const meta = makeMeta(300);
-        purchaseMeta(meta, 'meta_hp');
+        purchaseMeta(meta, 'meta_root_damage');
         const spentBefore = 300 - meta.shards;
         const shardsEl = document.createElement('div'); shardsEl.id = 'metaShards'; document.body.appendChild(shardsEl);
         const btn = document.createElement('button'); btn.id = 'btnRefundMeta'; document.body.appendChild(btn);

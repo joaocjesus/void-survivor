@@ -6,7 +6,7 @@ describe('meta stats builder', () => {
     it('builds lines with derived shard and average metrics', () => {
         const meta: MetaSave = {
             shards: 120,
-            purchased: { meta_hp: 2, meta_damage: 1 },
+            purchased: { meta_root_damage: 1, meta_bolt_damage: 1 },
             stats: { totalKills: 300, totalTime: 900, runs: 3, bestTime: 400 }
         };
         const lines = buildMetaStats(meta);
@@ -18,9 +18,9 @@ describe('meta stats builder', () => {
         expect(lines.find(l => l.startsWith('Average Time / Run:'))).toBeDefined();
         expect(lines.find(l => l.startsWith('Average Kills / Run:'))).toContain('100.0'); // 300 / 3
         expect(lines.find(l => l.startsWith('Current Shards:'))).toContain('120');
-        // Spent shards: hp(2) -> 20 + 30 = 50, damage(1) -> 15, total 65
-        expect(lines.find(l => l.startsWith('Spent Shards'))).toContain('65');
-        expect(lines.find(l => l.startsWith('Total Shards Acquired'))).toContain(String(120 + 65));
+        // Spent shards: root damage(1) -> 1, bolt damage(1) -> 15, total 16
+        expect(lines.find(l => l.startsWith('Spent Shards'))).toContain('16');
+        expect(lines.find(l => l.startsWith('Total Shards Acquired'))).toContain(String(120 + 16));
     });
     it('handles zero runs gracefully', () => {
         const meta: MetaSave = { shards: 0, purchased: {}, stats: { totalKills: 0, totalTime: 0, runs: 0, bestTime: 0 } };
