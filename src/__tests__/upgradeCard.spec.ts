@@ -67,4 +67,27 @@ describe('renderUpgradeCard', () => {
 
         expect(card.querySelector('button')).toBeNull();
     });
+
+    it('groups magic orb variant cards under the Magic Orbs title', () => {
+        const orbDamage: UpgradeDef = {
+            id: 'magicOrbDamage',
+            name: 'Magic Orbs Damage',
+            description: 'More orb damage',
+            apply: () => undefined,
+        };
+        const orbSpeed: UpgradeDef = {
+            id: 'magicOrbSpeed',
+            name: 'Magic Orbs Speed',
+            description: 'Faster orbs',
+            apply: () => undefined,
+        };
+
+        const damageCard = renderUpgradeCard(orbDamage, { player, base, rarity: 'common', increments: 1 });
+        const speedCard = renderUpgradeCard(orbSpeed, { player, base, rarity: 'common', increments: 1 });
+
+        expect(damageCard.querySelector('h3')?.textContent).toBe('Magic Orbs');
+        expect(damageCard.querySelector('.unlockLine')?.textContent).toBe('Damage');
+        expect(speedCard.querySelector('h3')?.textContent).toBe('Magic Orbs');
+        expect(speedCard.querySelector('.unlockLine')?.textContent).toBe('Speed');
+    });
 });

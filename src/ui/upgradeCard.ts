@@ -12,6 +12,11 @@ const RARITY_LABEL: Record<Rarity, string> = {
     common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary',
 };
 
+const CARD_HEADER_OVERRIDES: Record<string, { title: string; detail: string }> = {
+    magicOrbDamage: { title: 'Magic Orbs', detail: 'Damage' },
+    magicOrbSpeed: { title: 'Magic Orbs', detail: 'Speed' },
+};
+
 // Generate the same procedural dark texture used for the game background once,
 // and expose it to CSS via a custom property so cards share that look.
 let cardNoiseReady = false;
@@ -75,11 +80,13 @@ export function renderUpgradeCard(upgrade: UpgradeDef, options: UpgradeCardOptio
     const badge = (side: 'left' | 'right', level: number, tone: 'current' | 'next') =>
         `<span class="levelBadge levelBadge--${side} levelBadge--${tone}"><span class="levelBadgeLabel">LVL</span><span class="levelBadgeNum">${level}</span></span>`;
     const levelBadges = `${badge('left', currentLevel, 'current')}${badge('right', nextLevel, 'next')}`;
+    const header = CARD_HEADER_OVERRIDES[upgrade.id] ?? { title: upgrade.name, detail: '' };
+    const detailLine = isUnlock ? 'New Unlock' : header.detail;
     const subtitle =
         `<div class="rarityLabel">${RARITY_LABEL[rarity]}</div>` +
-        (isUnlock ? `<div class="unlockLine">New Unlock</div>` : '');
+        (detailLine ? `<div class="unlockLine">${detailLine}</div>` : '');
     const cardHeader =
-        `<div class="upgradeHeader">${levelBadges}<div class="upgradeTitle"><h3>${upgrade.name}</h3>${subtitle}</div></div>`;
+        `<div class="upgradeHeader">${levelBadges}<div class="upgradeTitle"><h3>${header.title}</h3>${subtitle}</div></div>`;
 
     const transitionRow = (label: string, current: string, next: string, inc?: string) =>
         `<div class="transitionRow"><span class="transitionLabel">${label}</span><span class="transitionValue"><span class="prevValue">${current}</span> <span class="arrowText">→</span> <strong>${next}</strong></span><span class="incPct">${inc ? `(${inc})` : ''}</span></div>`;

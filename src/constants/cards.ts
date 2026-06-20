@@ -85,11 +85,11 @@ export const CARDS = {
         values: { uncommon: 1, rare: 2, epic: 3, legendary: 4 },
     },
     magicOrbDamage: {
-        name: 'Magic Orb Damage', description: 'Increase orb damage', isPower: true, // +flat per orb
+        name: 'Magic Orbs Damage', description: 'Increase orb damage', isPower: true, // +flat per orb
         values: { common: 4, uncommon: 8, rare: 12, epic: 18, legendary: 25 },
     },
     magicOrbSpeed: {
-        name: 'Orb Speed', description: 'Orbs rotate faster', isPower: true, // +% rotation speed
+        name: 'Magic Orbs Speed', description: 'Orbs rotate faster', isPower: true, // +% rotation speed
         values: { common: 10, uncommon: 20, rare: 30, epic: 40, legendary: 60 },
     },
     multiShot: {
